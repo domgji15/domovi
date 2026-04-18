@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold">{{ zaposlenik.ime_prezime }}</h3>
+
+    <div class="d-flex gap-2">
+        <a href="{% url 'zaposlenik_update' zaposlenik.id %}"
+           class="btn btn-outline-primary rounded-pill px-4">
+            Uredi
+        </a>
+
+        <a href="{% url 'zaposlenik_delete' zaposlenik.id %}"
+           class="btn btn-outline-danger rounded-pill px-4">
+            Obriši
+        </a>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <strong>Pozicija:</strong><br>
+            {{ zaposlenik.pozicija }}
+        </div>
+
+        <div class="col-md-6">
+            <strong>Datum ugovora:</strong><br>
+            {{ zaposlenik.datum_ugovora }}
+        </div>
+
+        <div class="col-md-6">
+            <strong>Bruto:</strong><br>
+            {{ zaposlenik.bruto|numfmt }} €
+        </div>
+
+        <div class="col-md-6">
+            <strong>Neto:</strong><br>
+            {{ zaposlenik.neto|numfmt }} €
+        </div>
+    </div>
+</div>
+
+{% endblock %}

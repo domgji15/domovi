@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3 class="mb-4">Dodaj / Uredi režiju</h3>
+
+<div class="dashboard-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-4">
+            <div class="col-md-4">
+                <label class="form-label">Naziv režije</label>
+                {{ form.naziv }}
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Iznos (€)</label>
+                {{ form.iznos }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Interval</label>
+                {{ form.interval }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Datum početka</label>
+                {{ form.datum_pocetka }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Datum završetka</label>
+                {{ form.datum_zavrsetka }}
+            </div>
+            <div class="col-md-12">
+                <div class="form-check mt-2">
+                    {{ form.aktivna }}
+                    <label class="form-check-label" for="id_aktivna">Aktivna režija</label>
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-dark mt-4">Spremi</button>
+        <a href="{% if profil.role == 'zaposlenik' %}{% url 'dashboard' %}{% else %}{% url 'financije' %}{% endif %}"
+           class="btn btn-outline-secondary mt-4 ms-2">Odustani</a>
+    </form>
+</div>
+
+{% endblock %}

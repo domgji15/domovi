@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0">Primanja</h3>
+    <div class="d-flex gap-2">
+        <a href="{% url 'investicija_create' %}" class="btn btn-dark btn-sm rounded-pill px-3">+ Investicija</a>
+        <a href="{% url 'financije' %}?scope={{ selected_scope }}&year={{ selected_year }}&month={{ selected_month }}&quarter={{ selected_quarter }}"
+           class="btn btn-outline-secondary btn-sm rounded-pill px-3">Natrag</a>
+    </div>
+</div>
+
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between">
+        <span>Uplate korisnika</span>
+        <strong>{{ korisnici_primanja|numfmt }} €</strong>
+    </div>
+    <div class="d-flex justify-content-between">
+        <span>Investicije</span>
+        <strong>{{ investicije_sum|numfmt }} €</strong>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <h6 class="mb-3">Investicije</h6>
+    <div class="finance-table-scroll">
+        <table class="table modern-table mb-0">
+            <thead>
+                <tr>
+                    <th>Naziv investicije</th>
+                    <th>Iznos</th>
+                    <th>Datum</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in investicije %}
+                <tr class="clickable-row"
+                    onclick="window.location='{% url 'investicija_detail' inv.id %}'">
+                    <td>{{ inv.naziv }}</td>
+                    <td>{{ inv.iznos|numfmt }} €</td>
+                    <td>{{ inv.datum }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="text-center text-muted py-3">Nema investicija.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="dashboard-card mt-4">
+    <h6 class="mb-3">Uplate korisnika</h6>
+    <div class="finance-table-scroll">
+        <table class="table modern-table mb-0">
+            <thead>
+                <tr>
+                    <th>Korisnik</th>
+                    <th>Iznos</th>
+                    <th>Mjesec</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for uplata in korisnici_uplate %}
+                <tr class="clickable-row"
+                    onclick="window.location='{% url 'korisnik_detail' uplata.korisnik.id %}'">
+                    <td>{{ uplata.korisnik.ime_prezime }}</td>
+                    <td>{{ uplata.iznos|numfmt }} €</td>
+                    <td>{{ uplata.mjesec }}/{{ uplata.godina }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="text-center text-muted py-3">Nema uplata korisnika.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

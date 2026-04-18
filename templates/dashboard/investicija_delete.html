@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3 class="mb-3 fw-bold">Obriši investiciju</h3>
+
+<div class="dashboard-card">
+    <p>Jeste li sigurni da želite obrisati investiciju: <strong>{{ investicija.naziv }}</strong>?</p>
+    <form method="post" onsubmit="return confirm('Jeste li sigurni da želite izbrisati investiciju?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger rounded-pill px-4">Da, obriši</button>
+        <a href="{% url 'financije' %}" class="btn btn-outline-secondary rounded-pill px-4 ms-2">Odustani</a>
+    </form>
+</div>
+
+{% endblock %}

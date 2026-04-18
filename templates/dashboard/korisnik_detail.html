@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold">{{ korisnik.ime_prezime }}</h3>
+
+    {% if profil.role != "zaposlenik" %}
+        <div class="d-flex gap-2">
+            <a href="{% url 'korisnik_update' korisnik.id %}"
+               class="btn btn-outline-primary rounded-pill px-4">
+                Uredi
+            </a>
+
+            <a href="{% url 'korisnik_delete' korisnik.id %}"
+               class="btn btn-outline-danger rounded-pill px-4">
+                Obriši
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<div class="dashboard-card">
+
+    <div class="row g-4">
+
+        <div class="col-md-6">
+            <strong>OIB:</strong><br>
+            {{ korisnik.oib }}
+        </div>
+
+        <div class="col-md-6">
+            <strong>Datum rođenja:</strong><br>
+            {{ korisnik.datum_rodenja }}
+        </div>
+
+        <div class="col-md-6">
+            <strong>MBO:</strong><br>
+            {{ korisnik.mbo }}
+        </div>
+
+        <div class="col-md-6">
+            <strong>Soba:</strong><br>
+            {{ korisnik.soba }}
+        </div>
+
+        <div class="col-md-6">
+            <strong>Datum dolaska:</strong><br>
+            {{ korisnik.datum_dolaska }}
+        </div>
+
+        {% if profil.role != "zaposlenik" %}
+            <div class="col-md-6">
+                <strong>Iznos:</strong><br>
+                {{ korisnik.iznos|numfmt }} €
+            </div>
+
+            <div class="col-md-6">
+                <strong>Mjesečna članarina:</strong><br>
+                {{ mjesecna_clanarina|numfmt }} €
+            </div>
+        {% endif %}
+
+        <div class="col-md-12">
+            <strong>Kontakt obitelji (ime i prezime):</strong><br>
+            {{ korisnik.kontakt_obitelji }}
+        </div>
+
+        <div class="col-md-12">
+            <strong>Kontakt obitelji - broj telefona:</strong><br>
+            {{ korisnik.kontakt_obitelji_telefon|default:"-" }}
+        </div>
+
+    </div>
+
+</div>
+
+<div class="dashboard-card mt-4">
+    <h5 class="mb-3">Pregled uplata</h5>
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <small class="text-muted">Plaćenih mjeseci</small>
+            <div class="fw-semibold">{{ broj_placenih_mjeseci|numfmt }}</div>
+        </div>
+        <div class="col-md-4">
+            <small class="text-muted">Ukupno uplaćeno</small>
+            <div class="fw-semibold text-success">{{ ukupno_uplaceno|numfmt }} €</div>
+        </div>
+        <div class="col-md-4">
+            <small class="text-muted">Preostalo</small>
+            <div class="fw-semibold {% if preostalo > 0 %}text-danger{% else %}text-success{% endif %}">{{ preostalo|numfmt }} €</div>
+        </div>
+    </div>
+
+    <div class="finance-table-scroll">
+        <table class="table modern-table mb-0">
+            <thead>
+                <tr>
+                    <th>Mjesec</th>
+                    <th>Iznos</th>
+                    <th>Datum potvrde</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for uplata in uplate %}
+                    <tr>
+                        <td>{{ uplata.mjesec }}/{{ uplata.godina }}</td>
+                        <td>{{ uplata.iznos|numfmt }} €</td>
+                        <td>{{ uplata.datum_potvrde|date:"d.m.Y. H:i" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted py-4">Nema evidentiranih uplata.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

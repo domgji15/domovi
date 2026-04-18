@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0">Troškovi</h3>
+    <div class="d-flex gap-2">
+        <a href="{% url 'trosak_create' %}" class="btn btn-dark btn-sm rounded-pill px-3">+ Trošak</a>
+        <a href="{% url 'financije' %}?scope={{ selected_scope }}&year={{ selected_year }}&month={{ selected_month }}&quarter={{ selected_quarter }}"
+           class="btn btn-outline-secondary btn-sm rounded-pill px-3">Natrag</a>
+    </div>
+</div>
+
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between">
+        <span>Plaće zaposlenika</span>
+        <strong>{{ place_sum|numfmt }} €</strong>
+    </div>
+    <div class="d-flex justify-content-between">
+        <span>Troškovi kuhinje</span>
+        <strong>{{ kuhinja_sum|numfmt }} €</strong>
+    </div>
+    <div class="d-flex justify-content-between">
+        <span>Popravci u domu</span>
+        <strong>{{ popravci_sum|numfmt }} €</strong>
+    </div>
+    <div class="d-flex justify-content-between">
+        <span>Općeniti troškovi</span>
+        <strong>{{ opcenito_sum|numfmt }} €</strong>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <div class="finance-table-scroll">
+        <table class="table modern-table mb-0">
+            <thead>
+                <tr>
+                    <th>Naziv troška</th>
+                    <th>Kategorija</th>
+                    <th>Trgovina</th>
+                    <th>Meso</th>
+                    <th>Iznos</th>
+                    <th>Datum</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in troskovi %}
+                <tr class="clickable-row"
+                    onclick="window.location='{% url 'trosak_detail' t.id %}'">
+                    <td>{{ t.naziv }}</td>
+                    <td>{{ t.get_kategorija_display }}</td>
+                    <td>{% if t.kategorija == "kuhinja" %}{{ t.trgovina|default:"-" }}{% else %}-{% endif %}</td>
+                    <td>{% if t.kategorija == "kuhinja" %}{{ t.meso|default:"-" }}{% else %}-{% endif %}</td>
+                    <td>{{ t.iznos|numfmt }} €</td>
+                    <td>{{ t.datum }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-3">Nema troškova.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold">{{ trosak.naziv }}</h3>
+
+    <div class="d-flex gap-2">
+        <a href="{% url 'trosak_update' trosak.id %}"
+           class="btn btn-outline-primary rounded-pill px-4">
+            Uredi
+        </a>
+        <a href="{% url 'trosak_delete' trosak.id %}"
+           class="btn btn-outline-danger rounded-pill px-4">
+            Obriši
+        </a>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <strong>Kategorija:</strong><br>
+            {{ trosak.get_kategorija_display }}
+        </div>
+        <div class="col-md-6">
+            <strong>Iznos:</strong><br>
+            {{ trosak.iznos|numfmt }} €
+        </div>
+        <div class="col-md-6">
+            <strong>Datum:</strong><br>
+            {{ trosak.datum }}
+        </div>
+        <div class="col-md-6">
+            <strong>Trgovina:</strong><br>
+            {% if trosak.kategorija == "kuhinja" %}{{ trosak.trgovina|default:"-" }}{% else %}-{% endif %}
+        </div>
+        <div class="col-md-6">
+            <strong>Meso:</strong><br>
+            {% if trosak.kategorija == "kuhinja" %}{{ trosak.meso|default:"-" }}{% else %}-{% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

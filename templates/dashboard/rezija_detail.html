@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold">{{ rezija.naziv }}</h3>
+    <div class="d-flex gap-2">
+        <a href="{% url 'rezija_update' rezija.id %}" class="btn btn-outline-primary rounded-pill px-4">Uredi</a>
+        <a href="{% url 'rezija_delete' rezija.id %}" class="btn btn-outline-danger rounded-pill px-4">Obriši</a>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <strong>Iznos:</strong><br>
+            {{ rezija.iznos|numfmt }} €
+        </div>
+        <div class="col-md-6">
+            <strong>Interval:</strong><br>
+            {{ rezija.get_interval_display }}
+        </div>
+        <div class="col-md-6">
+            <strong>Datum početka:</strong><br>
+            {{ rezija.datum_pocetka }}
+        </div>
+        <div class="col-md-6">
+            <strong>Datum završetka:</strong><br>
+            {{ rezija.datum_zavrsetka|default:"-" }}
+        </div>
+        <div class="col-md-6">
+            <strong>Status:</strong><br>
+            {% if rezija.aktivna %}Aktivna{% else %}Neaktivna{% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

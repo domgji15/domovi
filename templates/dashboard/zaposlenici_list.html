@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 page-toolbar">
+    <h3 class="fw-bold">Zaposlenici</h3>
+
+    <div class="d-flex gap-3 page-toolbar-actions">
+        <form method="GET" class="d-flex toolbar-search-form">
+            <input type="text"
+                   name="q"
+                   value="{{ query|default:'' }}"
+                   class="form-control rounded-pill px-3"
+                   placeholder="Pretraži ime ili poziciju..."
+                   style="width:250px;">
+            <button class="btn btn-outline-dark rounded-pill ms-2 px-4">
+                Traži
+            </button>
+        </form>
+
+        <a href="{% url 'zaposlenik_create' %}"
+           class="btn btn-dark rounded-pill px-4">
+            + Novi zaposlenik
+        </a>
+    </div>
+</div>
+
+<div class="dashboard-card p-0">
+<div class="finance-table-scroll">
+    <table class="table modern-table mb-0">
+        <thead>
+        <tr>
+            <th>Ime i prezime</th>
+            <th>Pozicija</th>
+            <th>Bruto</th>
+            <th>Neto</th>
+            <th>Datum ugovora</th>
+        </tr>
+        </thead>
+
+        <tbody>
+        {% for z in zaposlenici %}
+        <tr class="clickable-row"
+            onclick="window.location='{% url 'zaposlenik_detail' z.id %}'">
+            <td class="fw-semibold">{{ z.ime_prezime }}</td>
+            <td>{{ z.pozicija }}</td>
+            <td>{{ z.bruto|numfmt }} €</td>
+            <td>{{ z.neto|numfmt }} €</td>
+            <td>{{ z.datum_ugovora }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="text-center py-4 text-muted">
+                Nema zaposlenika.
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+
+        <tfoot>
+        <tr>
+            <td colspan="2" class="text-end fw-bold">Suma:</td>
+            <td class="fw-bold">{{ totals.bruto_sum|default:0|numfmt }} €</td>
+            <td class="fw-bold">{{ totals.neto_sum|default:0|numfmt }} €</td>
+            <td></td>
+        </tr>
+        </tfoot>
+    </table>
+</div>
+</div>
+
+<div class="dashboard-card mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h5 class="mb-0">Kalendar smjena po zaposleniku</h5>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'zaposlenici_list' %}?week_start={{ prev_week_start|date:'Y-m-d' }}{% if query %}&q={{ query }}{% endif %}"
+               class="btn btn-sm btn-outline-secondary rounded-pill px-3">‹ Tjedan</a>
+            <span class="text-muted">{{ week_label }}</span>
+            <a href="{% url 'zaposlenici_list' %}?week_start={{ next_week_start|date:'Y-m-d' }}{% if query %}&q={{ query }}{% endif %}"
+               class="btn btn-sm btn-outline-secondary rounded-pill px-3">Tjedan ›</a>
+        </div>
+    </div>
+
+    <div class="finance-table-scroll shift-calendar-scroll">
+        <table class="table modern-table mb-0">
+            <thead>
+                <tr>
+                    <th style="min-width:220px;">Zaposlenik</th>
+                    {% for day in week_days %}
+                        <th style="min-width:160px;">{{ day|date:"D d.m." }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in week_rows %}
+                    <tr>
+                        <td class="fw-semibold">{{ row.zaposlenik.ime_prezime }}</td>
+                        {% for item in row.days %}
+                            <td>
+                                {% if can_manage_shifts %}
+                                    <form method="POST" action="{% url 'smjena_set' %}" class="m-0">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <input type="hidden" name="zaposlenik_id" value="{{ row.zaposlenik.id }}">
+                                        <input type="hidden" name="datum" value="{{ item.datum|date:'Y-m-d' }}">
+                                        <select name="tip_smjene" class="form-select form-select-sm shift-select" onchange="this.form.submit()">
+                                            {% for value, label in shift_choices %}
+                                                <option value="{{ value }}" {% if item.tip_smjene == value %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </form>
+                                {% else %}
+                                    {% for value, label in shift_choices %}
+                                        {% if item.tip_smjene == value %}{{ label }}{% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">Nema zaposlenika za prikaz smjena.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+{% endblock %}

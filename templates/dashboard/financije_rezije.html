@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0">Režije</h3>
+    <div class="d-flex gap-2">
+        <a href="{% url 'rezija_create' %}" class="btn btn-dark btn-sm rounded-pill px-3">+ Režija</a>
+        <a href="{% url 'financije' %}?scope={{ selected_scope }}&year={{ selected_year }}&month={{ selected_month }}&quarter={{ selected_quarter }}"
+           class="btn btn-outline-secondary btn-sm rounded-pill px-3">Natrag</a>
+    </div>
+</div>
+
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between">
+        <span>Ukupno režije</span>
+        <strong>{{ rezije_sum|numfmt }} €</strong>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <div class="finance-table-scroll">
+        <table class="table modern-table mb-0">
+            <thead>
+                <tr>
+                    <th>Naziv režije</th>
+                    <th>Iznos</th>
+                    <th>Interval</th>
+                    <th>Početak</th>
+                    <th>Završetak</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rezije %}
+                <tr class="clickable-row"
+                    onclick="window.location='{% url 'rezija_detail' r.id %}'">
+                    <td>{{ r.naziv }}</td>
+                    <td>{{ r.iznos|numfmt }} €</td>
+                    <td>{{ r.get_interval_display }}</td>
+                    <td>{{ r.datum_pocetka }}</td>
+                    <td>{{ r.datum_zavrsetka|default:"-" }}</td>
+                    <td>
+                        {% if r.aktivna %}
+                            Aktivna
+                        {% else %}
+                            Neaktivna
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-3">Nema režija.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h3 class="mb-4 fw-bold">Bok, {{ ime }}</h3>
+
+<div class="employee-layout-grid">
+    <div class="dashboard-card mini-calendar-card" id="employeeCalendarCard">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">Kalendar</h6>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                        id="calendarPrevBtn">‹</button>
+                <span class="fw-semibold" id="calendarTitle">{{ cal_title }}</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                        id="calendarNextBtn">›</button>
+            </div>
+        </div>
+
+        <table class="table modern-table mini-calendar-table mb-0">
+            <thead>
+                <tr>
+                    <th>Pon</th>
+                    <th>Uto</th>
+                    <th>Sri</th>
+                    <th>Čet</th>
+                    <th>Pet</th>
+                    <th>Sub</th>
+                    <th>Ned</th>
+                </tr>
+            </thead>
+            <tbody id="calendarBody">
+                {% for week in cal_weeks %}
+                <tr>
+                    {% for day in week %}
+                        <td class="calendar-cell {% if forloop.counter0 >= 5 %}calendar-weekend{% endif %}">
+                            {% if day == 0 %}
+                                <span class="text-muted">·</span>
+                            {% elif day == cal_today.day and cal_month == cal_today.month and cal_year == cal_today.year %}
+                                <span class="calendar-today">{{ day }}</span>
+                            {% else %}
+                                <span class="calendar-day">{{ day }}</span>
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="dashboard-card employee-shifts-card" id="employeeShiftsCard">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+            <h6 class="mb-0">Radno vrijeme i smjene</h6>
+            <small class="text-muted">Tjedan: {{ week_label }}</small>
+        </div>
+
+        <div class="shift-today-box mb-3">
+            <small>Danas</small>
+            <div class="shift-today-date">{{ today_schedule.datum|date:"l, d.m.Y." }}</div>
+            <div class="shift-row">
+                <span>Smjena</span>
+                <strong>{{ today_schedule.smjena }}</strong>
+            </div>
+            <div class="shift-row mb-0">
+                <span>Radno vrijeme</span>
+                <strong>{{ today_schedule.radno_vrijeme }}</strong>
+            </div>
+        </div>
+
+        <div class="shift-week-list">
+            {% for item in week_schedule %}
+            <div class="shift-week-item {% if item.is_today %}shift-week-today{% endif %}">
+                <div>
+                    <div class="shift-day-label">{{ item.datum|date:"D, d.m." }}</div>
+                    <small class="text-muted">{{ item.datum|date:"Y." }}</small>
+                </div>
+                <div class="text-end">
+                    <div class="shift-badge {% if item.is_weekend %}shift-off{% endif %}">{{ item.smjena }}</div>
+                    <small class="text-muted">{{ item.radno_vrijeme }}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-card mt-4">
+    <h6 class="mb-3">Brzi unos</h6>
+    <div class="d-flex gap-2">
+        <a href="{% url 'trosak_create' %}" class="btn btn-dark rounded-pill px-4">+ Trošak</a>
+        <a href="{% url 'rezija_create' %}" class="btn btn-outline-dark rounded-pill px-4">+ Režija</a>
+    </div>
+</div>
+
+<div class="dashboard-grid mt-4">
+    <div class="dashboard-card">
+        <small>Broj korisnika u domu</small>
+        <h2>{{ broj_korisnika|numfmt }}</h2>
+    </div>
+
+    <div class="dashboard-card">
+        <small>Popunjenost doma</small>
+        <div style="max-width:220px;">
+            <canvas id="popunjenostDonut"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    let calMonth = Number("{{ cal_month }}");
+    let calYear = Number("{{ cal_year }}");
+    const calendarTitleEl = document.getElementById("calendarTitle");
+    const calendarBodyEl = document.getElementById("calendarBody");
+    const calendarPrevBtn = document.getElementById("calendarPrevBtn");
+    const calendarNextBtn = document.getElementById("calendarNextBtn");
+
+    const buildCalendarRows = (weeks, todayDay, todayMonth, todayYear, currentMonth, currentYear) => {
+        if (!calendarBodyEl) return;
+        calendarBodyEl.innerHTML = "";
+        weeks.forEach((week) => {
+            const tr = document.createElement("tr");
+            week.forEach((day, idx) => {
+                const td = document.createElement("td");
+                td.className = `calendar-cell${idx >= 5 ? " calendar-weekend" : ""}`;
+                if (day === 0) {
+                    td.innerHTML = '<span class="text-muted">·</span>';
+                } else if (day === todayDay && currentMonth === todayMonth && currentYear === todayYear) {
+                    td.innerHTML = `<span class="calendar-today">${day}</span>`;
+                } else {
+                    td.innerHTML = `<span class="calendar-day">${day}</span>`;
+                }
+                tr.appendChild(td);
+            });
+            calendarBodyEl.appendChild(tr);
+        });
+    };
+
+    const loadCalendarMonth = async (month, year) => {
+        const params = new URLSearchParams({ m: String(month), y: String(year) });
+        const url = "{% url 'employee_calendar_data' %}?" + params.toString();
+        const res = await fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+        if (!res.ok) return;
+        const payload = await res.json();
+        calMonth = payload.cal_month;
+        calYear = payload.cal_year;
+        if (calendarTitleEl) calendarTitleEl.textContent = payload.title;
+        buildCalendarRows(
+            payload.weeks,
+            payload.today_day,
+            payload.today_month,
+            payload.today_year,
+            payload.cal_month,
+            payload.cal_year
+        );
+        syncEmployeeCards();
+    };
+
+    if (calendarPrevBtn) {
+        calendarPrevBtn.addEventListener("click", () => loadCalendarMonth(calMonth - 1, calYear));
+    }
+    if (calendarNextBtn) {
+        calendarNextBtn.addEventListener("click", () => loadCalendarMonth(calMonth + 1, calYear));
+    }
+
+    const syncEmployeeCards = () => {
+        const calendarCard = document.getElementById("employeeCalendarCard");
+        const shiftsCard = document.getElementById("employeeShiftsCard");
+        if (!calendarCard || !shiftsCard) return;
+
+        if (window.innerWidth <= 950) {
+            shiftsCard.style.height = "auto";
+            return;
+        }
+
+        const calendarHeight = calendarCard.offsetHeight;
+        shiftsCard.style.height = `${calendarHeight}px`;
+    };
+
+    syncEmployeeCards();
+    window.addEventListener("resize", syncEmployeeCards);
+
+    if (typeof Chart === "undefined") return;
+    const numberFmt = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    });
+    const el = document.getElementById("popunjenostDonut");
+    if (!el) return;
+    new Chart(el, {
+        type: "doughnut",
+        data: {
+            labels: ["Popunjeno", "Slobodno"],
+            datasets: [{
+                data: [{% for d in popunjenost_data %}{{ d }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                backgroundColor: ["#2563eb", "#d1d5db"],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: "65%",
+            plugins: {
+                legend: { position: "bottom" },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.label}: ${numberFmt.format(ctx.parsed)}`
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+
+{% endblock %}

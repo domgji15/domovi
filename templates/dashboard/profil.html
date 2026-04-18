@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3 class="mb-4 fw-bold">Moj profil</h3>
+
+<div class="dashboard-card">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <small>Korisničko ime</small>
+            <h5 class="mt-1 mb-0">{{ user_obj.username }}</h5>
+        </div>
+        <div class="col-md-6">
+            <small>Puno ime</small>
+            <h5 class="mt-1 mb-0">
+                {% if user_obj.get_full_name %}
+                    {{ user_obj.get_full_name }}
+                {% else %}
+                    -
+                {% endif %}
+            </h5>
+        </div>
+        <div class="col-md-6">
+            <small>Email</small>
+            <h5 class="mt-1 mb-0">{{ user_obj.email|default:"-" }}</h5>
+        </div>
+        <div class="col-md-6">
+            <small>Uloga</small>
+            <h5 class="mt-1 mb-0">
+                {% if profil_obj %}
+                    {{ profil_obj.get_role_display }}
+                {% else %}
+                    -
+                {% endif %}
+            </h5>
+        </div>
+        <div class="col-md-6">
+            <small>Primarni dom</small>
+            <h5 class="mt-1 mb-0">
+                {% if profil_obj and profil_obj.dom %}
+                    {{ profil_obj.dom.naziv }}
+                {% else %}
+                    -
+                {% endif %}
+            </h5>
+        </div>
+        <div class="col-md-6">
+            <small>Datum registracije</small>
+            <h5 class="mt-1 mb-0">{{ user_obj.date_joined|date:"d.m.Y." }}</h5>
+        </div>
+    </div>
+
+    {% if profil_obj and profil_obj.role == "upravitelj" %}
+    <hr class="my-4">
+    <small>Domovi pod upravom</small>
+    <div class="mt-2 d-flex flex-wrap gap-2">
+        {% for dom in upravljani_domovi %}
+            <span class="badge bg-light text-dark border rounded-pill px-3 py-2">{{ dom.naziv }}</span>
+        {% empty %}
+            <span class="text-muted">Nema dodijeljenih domova.</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <hr class="my-4">
+    <form method="post" action="{% url 'logout' %}" class="m-0" onsubmit="return confirm('Jeste li sigurni da se želite odjaviti?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-danger">Odjava</button>
+    </form>
+</div>
+
+{% endblock %}

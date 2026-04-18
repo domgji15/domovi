@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3 class="mb-4">{{ form_title|default:"Korisnik" }}</h3>
+
+<div class="dashboard-card">
+    {% if selected_dom %}
+    <div class="alert alert-light border mb-4">
+        Korisnik se sprema u dom:
+        <strong>
+            {% for dom in domovi %}
+                {% if dom.id == selected_dom %}{{ dom.naziv }}{% endif %}
+            {% endfor %}
+        </strong>
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="row g-4">
+
+            <div class="col-md-6">
+                <label class="form-label">Ime i prezime</label>
+                {{ form.ime_prezime }}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Datum rođenja</label>
+                {{ form.datum_rodenja }}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">OIB</label>
+                {{ form.oib }}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">MBO</label>
+                {{ form.mbo }}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Soba</label>
+                {{ form.soba }}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Datum dolaska</label>
+                {{ form.datum_dolaska }}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Ukupan iznos za platiti (€)</label>
+                {{ form.iznos }}
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Mjesečna članarina (€)</label>
+                {{ form.mjesecna_clanarina }}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Kontakt obitelji (ime i prezime)</label>
+                {{ form.kontakt_obitelji }}
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Kontakt obitelji - broj telefona</label>
+                {{ form.kontakt_obitelji_telefon }}
+            </div>
+
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-dark">
+                Spremi
+            </button>
+            <a href="{% url 'korisnici_list' %}" class="btn btn-outline-secondary">
+                Odustani
+            </a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

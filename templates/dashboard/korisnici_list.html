@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 page-toolbar">
+    <h3 class="fw-bold">Korisnici doma</h3>
+
+    <div class="d-flex gap-3 page-toolbar-actions">
+
+        <!-- SEARCH -->
+        <form method="GET" class="d-flex toolbar-search-form align-items-center gap-2">
+            <input type="text"
+                   name="q"
+                   value="{{ query|default:'' }}"
+                   class="form-control rounded-pill px-3"
+                   placeholder="Pretraži ime ili OIB..."
+                   style="width:250px;">
+            <select name="year" class="form-select form-select-sm" style="width:110px;">
+                {% for y in year_options %}
+                    <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+            <select name="month" class="form-select form-select-sm" style="width:100px;">
+                {% for m, label in month_options %}
+                    <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+
+            <button class="btn btn-outline-dark rounded-pill ms-2 px-4">
+                Traži
+            </button>
+        </form>
+
+        {% if profil.role != "zaposlenik" %}
+            <a href="{% url 'korisnik_create' %}"
+               class="btn btn-dark rounded-pill px-4">
+                + Novi korisnik
+            </a>
+        {% endif %}
+
+    </div>
+</div>
+
+<div class="dashboard-card p-0">
+
+    <table class="table modern-table mb-0">
+
+        <thead>
+            <tr>
+                <th>Ime i prezime</th>
+                <th>OIB</th>
+                <th>Soba</th>
+                <th>Uplata</th>
+            </tr>
+        </thead>
+
+     <tbody>
+    {% for row in korisnici_rows %}
+    {% with k=row.korisnik %}
+    <tr class="clickable-row"
+        onclick="window.location='{% url 'korisnik_detail' k.id %}'">
+
+        <td class="fw-semibold">{{ k.ime_prezime }}</td>
+        <td>{{ k.oib }}</td>
+        <td>
+            <span class="room-badge">
+                {{ k.soba }}
+            </span>
+        </td>
+        <td onclick="event.stopPropagation();">
+            {% if profil.role != "zaposlenik" %}
+            <form method="post"
+                  action="{% url 'korisnik_uplata_set' %}"
+                  class="d-flex align-items-center gap-2 m-0 korisnik-uplata-form"
+                  data-korisnik="{{ k.ime_prezime|escapejs }}"
+                  data-period="{{ selected_month }}/{{ selected_year }}"
+                  data-has-uplata="{% if row.uplata %}1{% else %}0{% endif %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="korisnik_id" value="{{ k.id }}">
+                <input type="hidden" name="godina" value="{{ selected_year }}">
+                <input type="hidden" name="mjesec" value="{{ selected_month }}">
+                <input type="hidden" name="action" value="set" class="uplata-action">
+                <input type="hidden"
+                       name="iznos"
+                       value="{{ row.suggested_amount }}"
+                       class="uplata-iznos-value">
+                <button type="button"
+                        class="btn btn-sm rounded-pill px-3 js-amount-btn uplata-amount-btn {% if row.uplata %}is-paid{% else %}is-unpaid{% endif %}"
+                        data-current-amount="{{ row.suggested_amount }}"
+                        data-korisnik="{{ k.ime_prezime|escapejs }}"
+                        data-max-amount="{{ row.preostalo }}"
+                        {% if not row.can_submit or row.uplata %}disabled{% endif %}>
+                    {{ row.suggested_amount|numfmt }} €
+                </button>
+                <button class="btn btn-sm rounded-pill px-3 {% if row.uplata %}btn-success{% else %}btn-danger{% endif %}"
+                        {% if not row.can_submit %}disabled{% endif %}>
+                    Plaćeno
+                </button>
+            </form>
+            {% if row.is_fully_paid and not row.uplata %}
+                <small class="text-success d-block mt-1">Ukupan iznos je u cijelosti podmiren.</small>
+            {% endif %}
+            {% else %}
+                {% if row.uplata %}
+                    <span class="badge bg-success">Plaćeno</span>
+                {% else %}
+                    <span class="badge bg-secondary">Nije plaćeno</span>
+                {% endif %}
+            {% endif %}
+        </td>
+    </tr>
+    {% endwith %}
+    {% empty %}
+    <tr>
+        <td colspan="4" class="text-center py-4 text-muted">
+            Nema korisnika.
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+
+    </table>
+
+</div>
+
+ 
+
+<div id="amountModal" class="custom-modal-overlay d-none">
+    <div class="custom-modal-card">
+        <h6 class="mb-3">Unos proizvoljnog iznosa</h6>
+        <p class="text-muted mb-2" id="amountModalKorisnik"></p>
+        <input type="number"
+               id="amountModalInput"
+               class="form-control"
+               step="0.01"
+               min="0"
+               placeholder="Unesi iznos">
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <button type="button" id="amountModalCancel" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Odustani</button>
+            <button type="button" id="amountModalSave" class="btn btn-dark btn-sm rounded-pill px-3">Spremi</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.uplata-amount-btn {
+    border-color: #9ca3af;
+    background: #ffffff;
+}
+
+.uplata-amount-btn.is-unpaid {
+    color: #111111 !important;
+}
+
+.uplata-amount-btn.is-paid {
+    color: #6b7280 !important;
+    background: #f3f4f6;
+}
+
+body.dark-mode .uplata-amount-btn.is-unpaid {
+    color: #111111 !important;
+    background: #ffffff;
+}
+
+body.dark-mode .uplata-amount-btn.is-paid {
+    color: #6b7280 !important;
+    background: #e5e7eb;
+}
+
+.custom-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(12, 18, 30, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+}
+.custom-modal-card {
+    width: min(92vw, 420px);
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--card-border, #d0d6e0);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const amountButtons = document.querySelectorAll(".js-amount-btn");
+    const modal = document.getElementById("amountModal");
+    const modalInput = document.getElementById("amountModalInput");
+    const modalKorisnik = document.getElementById("amountModalKorisnik");
+    const modalSave = document.getElementById("amountModalSave");
+    const modalCancel = document.getElementById("amountModalCancel");
+    let activeButton = null;
+    let activeHiddenInput = null;
+
+    function openAmountModal(button, hiddenInput) {
+        activeButton = button;
+        activeHiddenInput = hiddenInput;
+        modalKorisnik.textContent = button.dataset.korisnik || "";
+        modalInput.value = (hiddenInput.value || button.dataset.currentAmount || "").trim();
+        modal.classList.remove("d-none");
+        setTimeout(() => modalInput.focus(), 0);
+    }
+
+    function closeAmountModal() {
+        modal.classList.add("d-none");
+        activeButton = null;
+        activeHiddenInput = null;
+    }
+
+    modalCancel.addEventListener("click", closeAmountModal);
+    modal.addEventListener("click", function (event) {
+        if (event.target === modal) {
+            closeAmountModal();
+        }
+    });
+
+    modalSave.addEventListener("click", function () {
+        if (!activeButton || !activeHiddenInput) {
+            closeAmountModal();
+            return;
+        }
+        const normalized = (modalInput.value || "").replace(",", ".").trim();
+        const amount = Number(normalized);
+        const maxAllowedRaw = (activeButton.dataset.maxAmount || "").replace(",", ".").trim();
+        const maxAllowed = Number(maxAllowedRaw);
+        if (!normalized || Number.isNaN(amount) || amount <= 0) {
+            window.alert("Upiši ispravan iznos veći od 0.");
+            return;
+        }
+        if (!Number.isNaN(maxAllowed) && maxAllowed > 0 && amount > maxAllowed) {
+            window.alert(`Iznos ne može biti veći od preostalog iznosa (${maxAllowed.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €).`);
+            return;
+        }
+
+        const fixed = amount.toFixed(2);
+        activeHiddenInput.value = fixed;
+        activeButton.dataset.currentAmount = fixed;
+        activeButton.textContent = `${Number(fixed).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+        closeAmountModal();
+    });
+
+    amountButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+            const form = button.closest("form");
+            const hiddenInput = form.querySelector(".uplata-iznos-value");
+            openAmountModal(button, hiddenInput);
+        });
+    });
+
+    const forms = document.querySelectorAll(".korisnik-uplata-form");
+    forms.forEach(function (form) {
+        form.addEventListener("submit", function (event) {
+            const actionInput = form.querySelector(".uplata-action");
+            const hiddenInput = form.querySelector(".uplata-iznos-value");
+            const amountButton = form.querySelector(".js-amount-btn");
+            const hasUplata = form.dataset.hasUplata === "1";
+            const korisnik = form.dataset.korisnik || "korisnik";
+            const period = form.dataset.period || "";
+
+            if (hasUplata) {
+                const okDelete = window.confirm(`Uplata za ${korisnik} (${period}) je već potvrđena. Želiš li poništiti uplatu?`);
+                if (!okDelete) {
+                    event.preventDefault();
+                    return;
+                }
+                actionInput.value = "delete";
+                return;
+            }
+
+            const raw = (hiddenInput.value || "").replace(",", ".").trim();
+            const amount = Number(raw);
+            const maxAllowedRaw = ((amountButton && amountButton.dataset.maxAmount) || "").replace(",", ".").trim();
+            const maxAllowed = Number(maxAllowedRaw);
+            if (!raw || Number.isNaN(amount) || amount <= 0) {
+                event.preventDefault();
+                window.alert("Nije moguće potvrditi uplatu bez ispravnog iznosa.");
+                return;
+            }
+            if (!Number.isNaN(maxAllowed) && maxAllowed > 0 && amount > maxAllowed) {
+                event.preventDefault();
+                window.alert(`Iznos ne može biti veći od preostalog iznosa (${maxAllowed.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €).`);
+                return;
+            }
+            actionInput.value = "set";
+            const ok = window.confirm(`Potvrdi uplatu za ${korisnik} za ${period}?`);
+            if (!ok) {
+                event.preventDefault();
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}

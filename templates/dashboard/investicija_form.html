@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3 class="mb-4">Dodaj / Uredi investiciju</h3>
+
+<div class="dashboard-card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-4">
+            <div class="col-md-6">
+                <label class="form-label">Naziv investicije</label>
+                {{ form.naziv }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Iznos (€)</label>
+                {{ form.iznos }}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Datum</label>
+                {{ form.datum }}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-dark mt-4">Spremi</button>
+        <a href="{% url 'financije' %}" class="btn btn-outline-secondary mt-4 ms-2">Odustani</a>
+    </form>
+</div>
+
+{% endblock %}

@@ -23,6 +23,42 @@ class KorisnikFormTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("oib", form.errors)
 
+    def test_rejects_oib_with_invalid_checksum(self):
+        form = KorisnikForm(
+            data={
+                "ime_prezime": "Ana Horvat",
+                "datum_rodenja": "1950-01-01",
+                "oib": "12345678901",  # Invalid checksum
+                "mbo": "MBO-1",
+                "soba": "12A",
+                "datum_dolaska": "2025-01-01",
+                "iznos": "500.00",
+                "mjesecna_clanarina": "100.00",
+                "kontakt_obitelji": "Marko Horvat",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("oib", form.errors)
+
+    def test_accepts_valid_oib(self):
+        # Valid test OIB with correct checksum
+        form = KorisnikForm(
+            data={
+                "ime_prezime": "Ana Horvat",
+                "datum_rodenja": "1950-01-01",
+                "oib": "94577403194",  # Valid OIB
+                "mbo": "MBO-1",
+                "soba": "12A",
+                "datum_dolaska": "2025-01-01",
+                "iznos": "500.00",
+                "mjesecna_clanarina": "100.00",
+                "kontakt_obitelji": "Marko Horvat",
+            }
+        )
+
+        self.assertTrue(form.is_valid())
+
 
 class TrosakFormTests(TestCase):
     def test_kuhinja_requires_trgovina_and_meso(self):

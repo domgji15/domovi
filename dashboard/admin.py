@@ -83,6 +83,7 @@ class KorisnikUplataAdmin(admin.ModelAdmin):
     list_display = ("korisnik", "godina", "mjesec", "iznos", "datum_potvrde", "dom", "klijent")
     list_filter = ("godina", "mjesec", "korisnik__dom__klijent", "korisnik__dom")
     search_fields = ("korisnik__ime_prezime", "korisnik__oib")
+    raw_id_fields = ("korisnik",)
 
     @admin.display(description="Dom")
     def dom(self, obj):
@@ -143,6 +144,7 @@ class SmjenaAdmin(admin.ModelAdmin):
     list_display = ("zaposlenik", "datum", "tip_smjene", "dom", "klijent")
     list_filter = ("tip_smjene", "datum", "zaposlenik__dom__klijent", "zaposlenik__dom")
     search_fields = ("zaposlenik__ime_prezime",)
+    raw_id_fields = ("zaposlenik",)
 
     @admin.display(description="Dom")
     def dom(self, obj):

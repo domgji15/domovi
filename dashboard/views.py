@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.http import HttpResponseForbidden, JsonResponse
 from django.db.models import Count, Q, Sum
 from django.urls import reverse
@@ -679,9 +680,14 @@ def korisnici_list(request):
         .annotate(total=Sum("iznos"))
     }
 
+    # Paginate korisnici
+    paginator = Paginator(korisnici, 25)
+    page_number = request.GET.get("page", 1)
+    page_obj = paginator.get_page(page_number)
+
     korisnici_rows = []
     unpaid_korisnici = []
-    for korisnik in korisnici:
+    for korisnik in page_obj:
         uplata = uplate_map.get(korisnik.id)
         ukupno_uplaceno = ukupno_uplaceno_map.get(korisnik.id, Decimal("0"))
         preostalo = Decimal(korisnik.iznos or 0) - ukupno_uplaceno
@@ -711,6 +717,7 @@ def korisnici_list(request):
     return render(request, "dashboard/korisnici_list.html", {
         "korisnici": korisnici,
         "korisnici_rows": korisnici_rows,
+        "page_obj": page_obj,
         "unpaid_korisnici": unpaid_korisnici,
         "query": query,
         "selected_year": selected_year,
@@ -917,6 +924,7 @@ def zaposlenici_list(request):
         zaposlenici = Zaposlenik.objects.none()
         totals = {"bruto_sum": 0, "neto_sum": 0}
         week_rows = []
+        page_obj = None
     else:
         zaposlenici = Zaposlenik.objects.filter(dom_id=selected_dom)
         if query:
@@ -929,6 +937,12 @@ def zaposlenici_list(request):
             neto_sum=Sum("neto"),
         )
 
+        # Paginate zaposlenici for main table
+        paginator = Paginator(zaposlenici, 25)
+        page_number = request.GET.get("page", 1)
+        page_obj = paginator.get_page(page_number)
+
+        # Shifts calendar uses all zaposlenici (not paginated)
         shifts = Smjena.objects.filter(
             zaposlenik__in=zaposlenici,
             datum__range=(week_start, week_end),
@@ -949,7 +963,8 @@ def zaposlenici_list(request):
             })
 
     return render(request, "dashboard/zaposlenici_list.html", {
-        "zaposlenici": zaposlenici,
+        "zaposlenici": page_obj if page_obj else zaposlenici,
+        "page_obj": page_obj,
         "totals": totals,
         "query": query,
         "week_days": week_days,
@@ -1552,3 +1567,21 @@ def rezija_detail(request, pk):
     rezija = get_object_or_404(Rezija, pk=pk, dom_id__in=allowed_ids)
 
     return render(request, "dashboard/rezija_detail.html", {"rezija": rezija})
+
+
+# ==========================================
+# HEALTH CHECK
+# ==========================================
+
+def health_check(request):
+    """Health check endpoint for Railway monitoring."""
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return JsonResponse({"status": "healthy"}, status=200)
+    except Exception as e:
+        return JsonResponse(
+            {"status": "unhealthy", "error": str(e)},
+            status=503
+        )

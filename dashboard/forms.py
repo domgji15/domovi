@@ -8,6 +8,27 @@ from .models import Investicija, Korisnik, Rezija, Trosak, Zaposlenik
 _POSITIVE_AMOUNT = MinValueValidator(Decimal("0.01"), message="Iznos mora biti veći od 0.")
 
 
+def _validate_oib_checksum(oib):
+    """
+    Validate Croatian OIB using ISO 7064, MOD 11-10 algorithm.
+    Returns True if valid, False otherwise.
+    """
+    if not oib or len(oib) != 11 or not oib.isdigit():
+        return False
+
+    check_digit = int(oib[10])
+    control = 10
+
+    for i in range(10):
+        control = (control + int(oib[i])) % 10
+        if control == 0:
+            control = 10
+        control = (control * 2) % 11
+
+    control_digit = (11 - control) % 10
+    return control_digit == check_digit
+
+
 # =====================================
 # KORISNIK FORMA
 # =====================================
@@ -49,6 +70,8 @@ class KorisnikForm(forms.ModelForm):
         oib = self.cleaned_data.get("oib")
         if oib and (len(oib) != 11 or not oib.isdigit()):
             raise forms.ValidationError("OIB mora imati točno 11 znamenki.")
+        if oib and not _validate_oib_checksum(oib):
+            raise forms.ValidationError("OIB nije valjan. Provjerite kontrolnu znamenku.")
         return oib
 
 

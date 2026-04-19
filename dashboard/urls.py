@@ -40,4 +40,5 @@ urlpatterns = [
     path("rezije/<int:pk>/edit/", views.rezija_update, name="rezija_update"),
     path("rezije/<int:pk>/delete/", views.rezija_delete, name="rezija_delete"),
 
+    path("health/", views.health_check, name="health_check"),
 ]

@@ -10,3 +10,9 @@ db/sqlite_export.json
 db/backups/
 
 staticfiles/
+
+# Claude Code
+.claude/
+
+# Logs
+logs/

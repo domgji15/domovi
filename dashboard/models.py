@@ -78,7 +78,7 @@ class Korisnik(models.Model):
 
     ime_prezime = models.CharField(max_length=255)
     datum_rodenja = models.DateField()
-    oib = models.CharField(max_length=11)
+    oib = models.CharField(max_length=11, unique=True)
     mbo = models.CharField(max_length=50)
     soba = models.CharField(max_length=50)
     datum_dolaska = models.DateField()

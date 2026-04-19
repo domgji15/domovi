@@ -9,9 +9,34 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.db.models import Count, Sum
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-from .models import Investicija, Korisnik, KorisnikUplata, Profil, Rezija, Smjena, Trosak, Zaposlenik
+from .models import Dom, Investicija, Korisnik, KorisnikUplata, Profil, Rezija, Smjena, Trosak, Zaposlenik
 from .forms import InvesticijaForm, KorisnikForm, RezijaForm, TrosakForm, ZaposlenikForm
 from .dom_access import resolve_selected_dom_id
+
+MONTH_OPTIONS = (
+    (1, "Sij"), (2, "Velj"), (3, "Ožu"), (4, "Tra"),
+    (5, "Svi"), (6, "Lip"), (7, "Srp"), (8, "Kol"),
+    (9, "Ruj"), (10, "Lis"), (11, "Stu"), (12, "Pro"),
+)
+
+INTERVAL_TO_MONTHS = {
+    "bez_intervala": None,
+    "mjesecno": 1,
+    "kvartalno": 3,
+    "polugodisnje": 6,
+    "godisnje": 12,
+}
+
+
+def _build_year_options(dom_ids):
+    """Build sorted year options from all financial data for given dom IDs."""
+    year_candidates = {date.today().year}
+    year_candidates.update(KorisnikUplata.objects.filter(korisnik__dom_id__in=dom_ids).values_list("godina", flat=True))
+    year_candidates.update(Zaposlenik.objects.filter(dom_id__in=dom_ids).values_list("datum_ugovora__year", flat=True))
+    year_candidates.update(Investicija.objects.filter(dom_id__in=dom_ids).values_list("datum__year", flat=True))
+    year_candidates.update(Trosak.objects.filter(dom_id__in=dom_ids).values_list("datum__year", flat=True))
+    year_candidates.update(Rezija.objects.filter(dom_id__in=dom_ids).values_list("datum_pocetka__year", flat=True))
+    return sorted({y for y in year_candidates if y}, reverse=True)
 
 
 # ==========================================
@@ -125,13 +150,14 @@ def _build_employee_schedule(today, employee=None):
 def index(request):
     allowed_domovi, selected_dom, _ = resolve_selected_dom_id(request)
     allowed_ids = list(allowed_domovi.values_list("id", flat=True))
-    dom_capacity = 50
     profil = _get_profil(request)
 
     if profil and profil.role == "zaposlenik":
+        dom_obj = Dom.objects.filter(id=selected_dom).first() if selected_dom else None
+        dom_kapacitet = dom_obj.kapacitet if dom_obj else 0
         broj_korisnika = Korisnik.objects.filter(dom_id=selected_dom).count() if selected_dom else 0
-        slobodna_mjesta = max(dom_capacity - broj_korisnika, 0)
-        popunjenost = round((broj_korisnika / dom_capacity) * 100) if dom_capacity else 0
+        slobodna_mjesta = max(dom_kapacitet - broj_korisnika, 0)
+        popunjenost = round((broj_korisnika / dom_kapacitet) * 100) if dom_kapacitet else 0
         if popunjenost > 100:
             popunjenost = 100
         display_name = request.user.first_name or request.user.get_full_name() or request.user.username
@@ -193,11 +219,7 @@ def index(request):
             "selected_dom_filter": selected_dom_filter,
             "dom_filter_options": [],
             "year_options": [date.today().year],
-            "month_options": [
-                (1, "Sij"), (2, "Velj"), (3, "Ožu"), (4, "Tra"),
-                (5, "Svi"), (6, "Lip"), (7, "Srp"), (8, "Kol"),
-                (9, "Ruj"), (10, "Lis"), (11, "Stu"), (12, "Pro"),
-            ],
+            "month_options": MONTH_OPTIONS,
             "ukupan_broj_korisnika": 0,
             "broj_neplacenih_korisnika": 0,
             "ukupan_broj_zaposlenika": 0,
@@ -234,14 +256,6 @@ def index(request):
     troskovi_qs = Trosak.objects.filter(dom_id__in=filtered_ids)
     rezije_qs = Rezija.objects.filter(dom_id__in=filtered_ids, aktivna=True)
 
-    interval_to_months = {
-        "bez_intervala": None,
-        "mjesecno": 1,
-        "kvartalno": 3,
-        "polugodisnje": 6,
-        "godisnje": 12,
-    }
-
     def _period_troskovi(employees_qs, rezije_period_qs, troskovi_period_qs, p_start, p_end):
         place = Decimal("0")
         for zaposlenik in employees_qs:
@@ -250,7 +264,7 @@ def index(request):
 
         rezije_total = Decimal("0")
         for rezija in rezije_period_qs:
-            interval_months = interval_to_months.get(rezija.interval, 1)
+            interval_months = INTERVAL_TO_MONTHS.get(rezija.interval, 1)
             if interval_months is None:
                 count = 1 if p_start <= rezija.datum_pocetka <= p_end else 0
             else:
@@ -330,17 +344,17 @@ def index(request):
     dom_popunjenost = []
     for dom in filtered_domovi:
         broj_korisnika = korisnici_per_dom.get(dom.id, 0)
-        postotak = round((broj_korisnika / dom_capacity) * 100) if dom_capacity > 0 else 0
+        postotak = round((broj_korisnika / dom.kapacitet) * 100) if dom.kapacitet > 0 else 0
         if postotak > 100:
             postotak = 100
         dom_popunjenost.append({
             "naziv": dom.naziv,
             "broj_korisnika": broj_korisnika,
-            "kapacitet": dom_capacity,
+            "kapacitet": dom.kapacitet,
             "postotak": postotak,
         })
 
-    total_capacity = dom_capacity * len(allowed_ids)
+    total_capacity = allowed_domovi.aggregate(total=Sum("kapacitet"))["total"] or 0
     popunjenost = 0
     if total_capacity > 0:
         popunjenost = round((ukupan_broj_korisnika / total_capacity) * 100)
@@ -357,32 +371,66 @@ def index(request):
         for row in zaposlenici_qs.values("dom_id").annotate(total=Count("id"))
     }
 
+    # Pre-aggregate per-dom data to avoid N+1 queries
+    uplate_per_dom = {
+        row["korisnik__dom_id"]: row["total"]
+        for row in _filter_uplate_for_period(
+            uplate_qs, selected_scope, selected_year, selected_quarter, selected_month,
+        ).values("korisnik__dom_id").annotate(total=Sum("iznos"))
+    }
+    investicije_per_dom = {
+        row["dom_id"]: row["total"]
+        for row in investicije_qs.filter(
+            datum__range=(period_start, period_end),
+        ).values("dom_id").annotate(total=Sum("iznos"))
+    }
+    troskovi_per_dom_kat = {}
+    for row in troskovi_qs.filter(
+        datum__range=(period_start, period_end),
+    ).values("dom_id", "kategorija").annotate(total=Sum("iznos")):
+        troskovi_per_dom_kat.setdefault(row["dom_id"], {})[row["kategorija"]] = row["total"] or Decimal("0")
+
+    # Group employees and rezije by dom for salary/rezije calculations
+    zaposlenici_by_dom = {}
+    for zap in zaposlenici_qs:
+        zaposlenici_by_dom.setdefault(zap.dom_id, []).append(zap)
+    rezije_by_dom = {}
+    for rez in rezije_qs:
+        rezije_by_dom.setdefault(rez.dom_id, []).append(rez)
+
+    popunjenost_by_name = {x["naziv"]: x["postotak"] for x in dom_popunjenost}
+
     for dom in filtered_domovi:
-        dom_korisnici = Korisnik.objects.filter(dom=dom)
-        dom_investicije = Investicija.objects.filter(dom=dom)
-        dom_zaposlenici = Zaposlenik.objects.filter(dom=dom)
-        dom_troskovi = Trosak.objects.filter(dom=dom)
-        dom_rezije = Rezija.objects.filter(dom=dom, aktivna=True)
+        dom_uplate = uplate_per_dom.get(dom.id, Decimal("0"))
+        dom_inv = investicije_per_dom.get(dom.id, Decimal("0"))
+        dom_primanja = dom_uplate + dom_inv
 
-        dom_primanja = (
-            _filter_uplate_for_period(
-                KorisnikUplata.objects.filter(korisnik__dom=dom),
-                selected_scope,
-                selected_year,
-                selected_quarter,
-                selected_month,
-            ).aggregate(total=Sum("iznos"))["total"] or Decimal("0")
-        ) + (
-            dom_investicije.filter(datum__range=(period_start, period_end)).aggregate(total=Sum("iznos"))["total"] or Decimal("0")
+        # Calculate salary costs
+        dom_place_period = Decimal("0")
+        for zap in zaposlenici_by_dom.get(dom.id, []):
+            count = _count_occurrences(zap.datum_ugovora, 1, period_start, period_end)
+            dom_place_period += Decimal(zap.bruto) * count
+
+        # Calculate rezije costs
+        dom_rezije_period = Decimal("0")
+        for rez in rezije_by_dom.get(dom.id, []):
+            interval_months = INTERVAL_TO_MONTHS.get(rez.interval, 1)
+            if interval_months is None:
+                count = 1 if period_start <= rez.datum_pocetka <= period_end else 0
+            else:
+                count = _count_occurrences_with_end(
+                    rez.datum_pocetka, rez.datum_zavrsetka, interval_months, period_start, period_end,
+                )
+            dom_rezije_period += Decimal(rez.iznos) * count
+
+        # Maintenance costs from pre-aggregated data
+        dom_kat = troskovi_per_dom_kat.get(dom.id, {})
+        dom_odrzavanje_period = (
+            dom_kat.get("kuhinja", Decimal("0"))
+            + dom_kat.get("popravci", Decimal("0"))
+            + dom_kat.get("opcenito", Decimal("0"))
         )
 
-        dom_place_period, dom_rezije_period, dom_odrzavanje_period = _period_troskovi(
-            dom_zaposlenici,
-            dom_rezije,
-            dom_troskovi.filter(datum__range=(period_start, period_end)),
-            period_start,
-            period_end,
-        )
         dom_ukupni_troskovi = dom_place_period + dom_rezije_period + dom_odrzavanje_period
 
         dom_financije.append({
@@ -395,7 +443,7 @@ def index(request):
             "naziv": dom.naziv,
             "korisnici": korisnici_per_dom.get(dom.id, 0),
             "zaposlenici": zaposlenici_per_dom.get(dom.id, 0),
-            "popunjenost": next((x["postotak"] for x in dom_popunjenost if x["naziv"] == dom.naziv), 0),
+            "popunjenost": popunjenost_by_name.get(dom.naziv, 0),
             "primanja": dom_primanja,
             "troskovi": dom_ukupni_troskovi,
             "saldo": dom_primanja - dom_ukupni_troskovi,
@@ -480,13 +528,7 @@ def index(request):
             "url": reverse("rezija_detail", args=[rezija.id]),
         })
 
-    year_candidates = {date.today().year}
-    year_candidates.update(KorisnikUplata.objects.filter(korisnik__dom_id__in=allowed_ids).values_list("godina", flat=True))
-    year_candidates.update(Zaposlenik.objects.filter(dom_id__in=allowed_ids).values_list("datum_ugovora__year", flat=True))
-    year_candidates.update(Investicija.objects.filter(dom_id__in=allowed_ids).values_list("datum__year", flat=True))
-    year_candidates.update(Trosak.objects.filter(dom_id__in=allowed_ids).values_list("datum__year", flat=True))
-    year_candidates.update(Rezija.objects.filter(dom_id__in=allowed_ids).values_list("datum_pocetka__year", flat=True))
-    year_options = sorted({y for y in year_candidates if y}, reverse=True)
+    year_options = _build_year_options(allowed_ids)
 
     dom_labels = [d["naziv"] for d in dom_popunjenost]
     dom_popunjenost_data = [d["postotak"] for d in dom_popunjenost]
@@ -502,11 +544,7 @@ def index(request):
         "selected_dom_filter": selected_dom_filter,
         "dom_filter_options": dom_filter_options,
         "year_options": year_options,
-        "month_options": [
-            (1, "Sij"), (2, "Velj"), (3, "Ožu"), (4, "Tra"),
-            (5, "Svi"), (6, "Lip"), (7, "Srp"), (8, "Kol"),
-            (9, "Ruj"), (10, "Lis"), (11, "Stu"), (12, "Pro"),
-        ],
+        "month_options": MONTH_OPTIONS,
         "ukupan_broj_korisnika": ukupan_broj_korisnika,
         "broj_neplacenih_korisnika": broj_neplacenih_korisnika,
         "ukupan_broj_zaposlenika": ukupan_broj_zaposlenika,
@@ -662,11 +700,7 @@ def korisnici_list(request):
         "query": query,
         "selected_year": selected_year,
         "selected_month": selected_month,
-        "month_options": [
-            (1, "Sij"), (2, "Velj"), (3, "Ožu"), (4, "Tra"),
-            (5, "Svi"), (6, "Lip"), (7, "Srp"), (8, "Kol"),
-            (9, "Ruj"), (10, "Lis"), (11, "Stu"), (12, "Pro"),
-        ],
+        "month_options": MONTH_OPTIONS,
         "year_options": sorted({
             today.year,
             *KorisnikUplata.objects.filter(korisnik__dom_id=selected_dom).values_list("godina", flat=True),
@@ -967,6 +1001,9 @@ def smjena_set(request):
 
 @login_required
 def zaposlenik_create(request):
+    profil = _get_profil(request)
+    if profil and profil.role == "zaposlenik":
+        return HttpResponseForbidden("Zaposlenik ne može dodavati zaposlenike.")
 
     _, selected_dom, _ = resolve_selected_dom_id(request)
     if not selected_dom:
@@ -1055,20 +1092,34 @@ def _add_months(value, months):
     return date(year, month, day)
 
 
+def _months_between(d1, d2):
+    """Return the number of months from d1 to d2 (can be negative)."""
+    return (d2.year - d1.year) * 12 + (d2.month - d1.month)
+
+
 def _count_occurrences(start_date, interval_months, period_start, period_end):
     if start_date > period_end:
         return 0
 
-    current = start_date
-    while current < period_start:
-        current = _add_months(current, interval_months)
+    if start_date >= period_start:
+        first_in_period = start_date
+        steps_to_first = 0
+    else:
+        # Calculate how many intervals to skip to reach period_start
+        months_gap = _months_between(start_date, period_start)
+        steps_to_first = max(0, months_gap // interval_months)
+        first_in_period = _add_months(start_date, steps_to_first * interval_months)
+        # Might have landed before period_start, advance once more if needed
+        if first_in_period < period_start:
+            steps_to_first += 1
+            first_in_period = _add_months(start_date, steps_to_first * interval_months)
 
-    count = 0
-    while current <= period_end:
-        count += 1
-        current = _add_months(current, interval_months)
+    if first_in_period > period_end:
+        return 0
 
-    return count
+    # Count how many occurrences fit between first_in_period and period_end
+    months_remaining = _months_between(first_in_period, period_end)
+    return months_remaining // interval_months + 1
 
 
 def _count_occurrences_with_end(start_date, end_date, interval_months, period_start, period_end):
@@ -1154,11 +1205,7 @@ def _empty_financije_context(selected_scope, selected_year, selected_quarter, se
         "selected_quarter": selected_quarter,
         "selected_month": selected_month,
         "year_options": [date.today().year],
-        "month_options": [
-            (1, "Sij"), (2, "Velj"), (3, "Ožu"), (4, "Tra"),
-            (5, "Svi"), (6, "Lip"), (7, "Srp"), (8, "Kol"),
-            (9, "Ruj"), (10, "Lis"), (11, "Stu"), (12, "Pro"),
-        ],
+        "month_options": MONTH_OPTIONS,
     }
 
 
@@ -1194,18 +1241,11 @@ def _build_financije_context(selected_dom, selected_scope, selected_year, select
         place_sum += monthly * count
 
     rezije_qs = Rezija.objects.filter(dom_id=selected_dom).order_by("naziv")
-    interval_to_months = {
-        "bez_intervala": None,
-        "mjesecno": 1,
-        "kvartalno": 3,
-        "polugodisnje": 6,
-        "godisnje": 12,
-    }
     rezije_sum = Decimal("0")
     for rezija in rezije_qs:
         if not rezija.aktivna:
             continue
-        interval_months = interval_to_months.get(rezija.interval, 1)
+        interval_months = INTERVAL_TO_MONTHS.get(rezija.interval, 1)
         if interval_months is None:
             if rezija.datum_zavrsetka:
                 count = 1 if period_start <= rezija.datum_pocetka <= period_end and rezija.datum_pocetka <= rezija.datum_zavrsetka else 0
@@ -1236,14 +1276,7 @@ def _build_financije_context(selected_dom, selected_scope, selected_year, select
     ukupni_troskovi = place_sum + rezije_sum + kuhinja_sum + popravci_sum + opcenito_sum
     saldo = ukupna_primanja - ukupni_troskovi
 
-    year_candidates = {date.today().year}
-    year_candidates.update(KorisnikUplata.objects.filter(korisnik__dom_id=selected_dom).values_list("godina", flat=True))
-    year_candidates.update(Zaposlenik.objects.filter(dom_id=selected_dom).values_list("datum_ugovora__year", flat=True))
-    year_candidates.update(Investicija.objects.filter(dom_id=selected_dom).values_list("datum__year", flat=True))
-    year_candidates.update(Trosak.objects.filter(dom_id=selected_dom).values_list("datum__year", flat=True))
-    year_candidates.update(Rezija.objects.filter(dom_id=selected_dom).values_list("datum_pocetka__year", flat=True))
-    year_candidates = {y for y in year_candidates if y}
-    year_options = sorted(year_candidates, reverse=True)
+    year_options = _build_year_options([selected_dom])
 
     return {
         "korisnici_primanja": korisnici_primanja,
@@ -1265,11 +1298,7 @@ def _build_financije_context(selected_dom, selected_scope, selected_year, select
         "selected_quarter": selected_quarter,
         "selected_month": selected_month,
         "year_options": year_options,
-        "month_options": [
-            (1, "Sij"), (2, "Velj"), (3, "Ožu"), (4, "Tra"),
-            (5, "Svi"), (6, "Lip"), (7, "Srp"), (8, "Kol"),
-            (9, "Ruj"), (10, "Lis"), (11, "Stu"), (12, "Pro"),
-        ],
+        "month_options": MONTH_OPTIONS,
     }
 
 @login_required
@@ -1420,6 +1449,10 @@ def trosak_create(request):
 
 @login_required
 def trosak_update(request, pk):
+    profil = _get_profil(request)
+    if profil and profil.role == "zaposlenik":
+        return HttpResponseForbidden("Zaposlenik ne može uređivati troškove.")
+
     allowed_domovi, _, _ = resolve_selected_dom_id(request)
     allowed_ids = list(allowed_domovi.values_list("id", flat=True))
     trosak = get_object_or_404(Trosak, pk=pk, dom_id__in=allowed_ids)
@@ -1434,6 +1467,10 @@ def trosak_update(request, pk):
 
 @login_required
 def trosak_delete(request, pk):
+    profil = _get_profil(request)
+    if profil and profil.role == "zaposlenik":
+        return HttpResponseForbidden("Zaposlenik ne može brisati troškove.")
+
     allowed_domovi, _, _ = resolve_selected_dom_id(request)
     allowed_ids = list(allowed_domovi.values_list("id", flat=True))
     trosak = get_object_or_404(Trosak, pk=pk, dom_id__in=allowed_ids)

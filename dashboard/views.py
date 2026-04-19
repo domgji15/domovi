@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from .models import Dom, Investicija, Korisnik, KorisnikUplata, Profil, Rezija, Smjena, Trosak, Zaposlenik
@@ -44,7 +44,9 @@ def _build_year_options(dom_ids):
 # ==========================================
 
 def _get_profil(request):
-    return Profil.objects.filter(user=request.user).select_related("dom").first()
+    if not hasattr(request, "_cached_profil"):
+        request._cached_profil = Profil.objects.filter(user=request.user).select_related("dom").first()
+    return request._cached_profil
 
 
 def _build_calendar_payload(today, cal_month, cal_year):
@@ -478,6 +480,36 @@ def index(request):
     today = date.today()
     current_month_start = date(today.year, today.month, 1)
     current_month_end = date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
+
+    # Pre-aggregate current month troškovi per dom for alerts (avoid N+1)
+    cur_month_troskovi_per_dom = {
+        row["dom_id"]: row["total"]
+        for row in Trosak.objects.filter(
+            dom_id__in=filtered_ids,
+            datum__range=(current_month_start, current_month_end),
+        ).values("dom_id").annotate(total=Sum("iznos"))
+    }
+
+    # Pre-compute current month salary and rezije per dom using already-fetched data
+    cur_month_has_cost = {}
+    for dom_id in [row["id"] for row in dom_overview]:
+        place = Decimal("0")
+        for zap in zaposlenici_by_dom.get(dom_id, []):
+            count = _count_occurrences(zap.datum_ugovora, 1, current_month_start, current_month_end)
+            place += Decimal(zap.bruto) * count
+        rez_total = Decimal("0")
+        for rez in rezije_by_dom.get(dom_id, []):
+            interval_months = INTERVAL_TO_MONTHS.get(rez.interval, 1)
+            if interval_months is None:
+                count = 1 if current_month_start <= rez.datum_pocetka <= current_month_end else 0
+            else:
+                count = _count_occurrences_with_end(
+                    rez.datum_pocetka, rez.datum_zavrsetka, interval_months, current_month_start, current_month_end,
+                )
+            rez_total += Decimal(rez.iznos) * count
+        odrzavanje = cur_month_troskovi_per_dom.get(dom_id, Decimal("0"))
+        cur_month_has_cost[dom_id] = (place + rez_total + odrzavanje) > 0
+
     alerts = []
     for row in dom_overview:
         if row["popunjenost"] >= 90:
@@ -493,22 +525,7 @@ def index(request):
                 "url": f"{reverse('dashboard')}?scope={selected_scope}&year={selected_year}&month={selected_month}&quarter={selected_quarter}&dom_filter={row['id']}",
             })
 
-        dom_month_employees = Zaposlenik.objects.filter(dom_id=row["id"])
-        dom_month_rezije = Rezija.objects.filter(dom_id=row["id"], aktivna=True)
-        dom_month_troskovi = Trosak.objects.filter(
-            dom_id=row["id"],
-            datum__range=(current_month_start, current_month_end),
-        )
-        month_place, month_rezije, month_odrzavanje = _period_troskovi(
-            dom_month_employees,
-            dom_month_rezije,
-            dom_month_troskovi,
-            current_month_start,
-            current_month_end,
-        )
-        has_monthly_trosak = (month_place + month_rezije + month_odrzavanje) > 0
-
-        if not has_monthly_trosak:
+        if not cur_month_has_cost.get(row["id"], False):
             alerts.append({
                 "type": "info",
                 "text": f"Dom {row['naziv']} nema unosa troškova u tekućem mjesecu.",
@@ -645,9 +662,7 @@ def korisnici_list(request):
 
         if query:
             korisnici = korisnici.filter(
-                ime_prezime__icontains=query
-            ) | korisnici.filter(
-                oib__icontains=query
+                Q(ime_prezime__icontains=query) | Q(oib__icontains=query)
             )
 
     korisnici = korisnici.order_by("ime_prezime")
@@ -906,9 +921,7 @@ def zaposlenici_list(request):
         zaposlenici = Zaposlenik.objects.filter(dom_id=selected_dom)
         if query:
             zaposlenici = zaposlenici.filter(
-                ime_prezime__icontains=query
-            ) | zaposlenici.filter(
-                pozicija__icontains=query
+                Q(ime_prezime__icontains=query) | Q(pozicija__icontains=query)
             )
 
         totals = zaposlenici.aggregate(
@@ -1025,6 +1038,9 @@ def zaposlenik_create(request):
 
 @login_required
 def zaposlenik_update(request, pk):
+    profil = _get_profil(request)
+    if profil and profil.role == "zaposlenik":
+        return HttpResponseForbidden("Zaposlenik ne može uređivati zaposlenike.")
 
     allowed_domovi, _, _ = resolve_selected_dom_id(request)
     allowed_ids = list(allowed_domovi.values_list("id", flat=True))
@@ -1043,6 +1059,9 @@ def zaposlenik_update(request, pk):
 
 @login_required
 def zaposlenik_delete(request, pk):
+    profil = _get_profil(request)
+    if profil and profil.role == "zaposlenik":
+        return HttpResponseForbidden("Zaposlenik ne može brisati zaposlenike.")
 
     allowed_domovi, _, _ = resolve_selected_dom_id(request)
     allowed_ids = list(allowed_domovi.values_list("id", flat=True))
@@ -1301,8 +1320,8 @@ def _build_financije_context(selected_dom, selected_scope, selected_year, select
         "month_options": MONTH_OPTIONS,
     }
 
-@login_required
-def financije(request):
+def _financije_view(request, template_name):
+    """Shared financije view logic for all financije pages."""
     profil = _get_profil(request)
     if profil and profil.role == "zaposlenik":
         return HttpResponseForbidden("Zaposlenik nema pristup financijama.")
@@ -1312,49 +1331,27 @@ def financije(request):
     context = _build_financije_context(
         selected_dom, selected_scope, selected_year, selected_quarter, selected_month, period_start, period_end
     )
-    return render(request, "dashboard/financije.html", context)
+    return render(request, template_name, context)
+
+
+@login_required
+def financije(request):
+    return _financije_view(request, "dashboard/financije.html")
 
 
 @login_required
 def financije_primanja(request):
-    profil = _get_profil(request)
-    if profil and profil.role == "zaposlenik":
-        return HttpResponseForbidden("Zaposlenik nema pristup financijama.")
-
-    _, selected_dom, _ = resolve_selected_dom_id(request)
-    selected_scope, selected_year, selected_quarter, selected_month, period_start, period_end = _parse_period(request)
-    context = _build_financije_context(
-        selected_dom, selected_scope, selected_year, selected_quarter, selected_month, period_start, period_end
-    )
-    return render(request, "dashboard/financije_primanja.html", context)
+    return _financije_view(request, "dashboard/financije_primanja.html")
 
 
 @login_required
 def financije_troskovi(request):
-    profil = _get_profil(request)
-    if profil and profil.role == "zaposlenik":
-        return HttpResponseForbidden("Zaposlenik nema pristup financijama.")
-
-    _, selected_dom, _ = resolve_selected_dom_id(request)
-    selected_scope, selected_year, selected_quarter, selected_month, period_start, period_end = _parse_period(request)
-    context = _build_financije_context(
-        selected_dom, selected_scope, selected_year, selected_quarter, selected_month, period_start, period_end
-    )
-    return render(request, "dashboard/financije_troskovi.html", context)
+    return _financije_view(request, "dashboard/financije_troskovi.html")
 
 
 @login_required
 def financije_rezije(request):
-    profil = _get_profil(request)
-    if profil and profil.role == "zaposlenik":
-        return HttpResponseForbidden("Zaposlenik nema pristup financijama.")
-
-    _, selected_dom, _ = resolve_selected_dom_id(request)
-    selected_scope, selected_year, selected_quarter, selected_month, period_start, period_end = _parse_period(request)
-    context = _build_financije_context(
-        selected_dom, selected_scope, selected_year, selected_quarter, selected_month, period_start, period_end
-    )
-    return render(request, "dashboard/financije_rezije.html", context)
+    return _financije_view(request, "dashboard/financije_rezije.html")
 
 
 @login_required
@@ -1515,6 +1512,10 @@ def rezija_create(request):
 
 @login_required
 def rezija_update(request, pk):
+    profil = _get_profil(request)
+    if profil and profil.role == "zaposlenik":
+        return HttpResponseForbidden("Zaposlenik ne može uređivati režije.")
+
     allowed_domovi, _, _ = resolve_selected_dom_id(request)
     allowed_ids = list(allowed_domovi.values_list("id", flat=True))
     rezija = get_object_or_404(Rezija, pk=pk, dom_id__in=allowed_ids)
@@ -1529,6 +1530,10 @@ def rezija_update(request, pk):
 
 @login_required
 def rezija_delete(request, pk):
+    profil = _get_profil(request)
+    if profil and profil.role == "zaposlenik":
+        return HttpResponseForbidden("Zaposlenik ne može brisati režije.")
+
     allowed_domovi, _, _ = resolve_selected_dom_id(request)
     allowed_ids = list(allowed_domovi.values_list("id", flat=True))
     rezija = get_object_or_404(Rezija, pk=pk, dom_id__in=allowed_ids)

@@ -7,9 +7,11 @@ def global_dom_context(request):
     if not request.user.is_authenticated:
         return {}
 
-    try:
-        profil = Profil.objects.get(user=request.user)
-    except Profil.DoesNotExist:
+    if not hasattr(request, "_cached_profil"):
+        request._cached_profil = Profil.objects.filter(user=request.user).select_related("dom").first()
+    profil = request._cached_profil
+
+    if profil is None:
         return {
             "domovi": [],
             "selected_dom": None,

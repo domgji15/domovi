@@ -1,5 +1,11 @@
+from decimal import Decimal
+
 from django import forms
+from django.core.validators import MinValueValidator
+
 from .models import Investicija, Korisnik, Rezija, Trosak, Zaposlenik
+
+_POSITIVE_AMOUNT = MinValueValidator(Decimal("0.01"), message="Iznos mora biti veći od 0.")
 
 
 # =====================================
@@ -31,6 +37,13 @@ class KorisnikForm(forms.ModelForm):
             "kontakt_obitelji_telefon": forms.TextInput(attrs={"class": "form-control"}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["iznos"].validators.append(_POSITIVE_AMOUNT)
+        self.fields["mjesecna_clanarina"].validators.append(
+            MinValueValidator(Decimal("0"), message="Iznos ne smije biti negativan.")
+        )
+
     # Validacija OIB-a
     def clean_oib(self):
         oib = self.cleaned_data.get("oib")
@@ -60,6 +73,11 @@ class ZaposlenikForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["bruto"].validators.append(_POSITIVE_AMOUNT)
+        self.fields["neto"].validators.append(_POSITIVE_AMOUNT)
+
 
 class InvesticijaForm(forms.ModelForm):
 
@@ -76,6 +94,10 @@ class InvesticijaForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["iznos"].validators.append(_POSITIVE_AMOUNT)
+
 
 class TrosakForm(forms.ModelForm):
 
@@ -86,7 +108,7 @@ class TrosakForm(forms.ModelForm):
         widgets = {
             "naziv": forms.TextInput(attrs={"class": "form-control"}),
             "kategorija": forms.Select(attrs={"class": "form-select"}),
-            "iznos": forms.NumberInput(attrs={"class": "form-control"}),
+            "iznos": forms.NumberInput(attrs={"class": "form-control", "min": "0.01"}),
             "trgovina": forms.TextInput(attrs={"class": "form-control"}),
             "meso": forms.TextInput(attrs={"class": "form-control"}),
             "datum": forms.DateInput(attrs={
@@ -94,6 +116,10 @@ class TrosakForm(forms.ModelForm):
                 "class": "form-control"
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["iznos"].validators.append(_POSITIVE_AMOUNT)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -118,7 +144,7 @@ class RezijaForm(forms.ModelForm):
 
         widgets = {
             "naziv": forms.TextInput(attrs={"class": "form-control"}),
-            "iznos": forms.NumberInput(attrs={"class": "form-control"}),
+            "iznos": forms.NumberInput(attrs={"class": "form-control", "min": "0.01"}),
             "interval": forms.Select(attrs={"class": "form-select"}),
             "datum_pocetka": forms.DateInput(attrs={
                 "type": "date",
@@ -130,6 +156,10 @@ class RezijaForm(forms.ModelForm):
             }),
             "aktivna": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["iznos"].validators.append(_POSITIVE_AMOUNT)
 
     def clean(self):
         cleaned_data = super().clean()

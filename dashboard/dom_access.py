@@ -1,8 +1,9 @@
 from .models import Dom, Profil
 
 
-def get_allowed_domovi_for_user(user):
-    profil = Profil.objects.filter(user=user).select_related("dom").first()
+def get_allowed_domovi_for_user(user, profil=None):
+    if profil is None:
+        profil = Profil.objects.filter(user=user).select_related("dom").first()
 
     if not profil:
         return Dom.objects.none(), None
@@ -25,7 +26,8 @@ def get_allowed_domovi_for_user(user):
 
 
 def resolve_selected_dom_id(request, posted_dom_id=None):
-    domovi, role = get_allowed_domovi_for_user(request.user)
+    cached_profil = getattr(request, "_cached_profil", None)
+    domovi, role = get_allowed_domovi_for_user(request.user, profil=cached_profil)
     allowed_ids = set(domovi.values_list("id", flat=True))
 
     chosen = None

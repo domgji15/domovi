@@ -102,7 +102,7 @@ class KorisnikUplata(models.Model):
     godina = models.PositiveIntegerField()
     mjesec = models.PositiveSmallIntegerField()
     iznos = models.DecimalField(max_digits=10, decimal_places=2)
-    datum_potvrde = models.DateTimeField(auto_now=True)
+    datum_potvrde = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = "Uplata korisnika"

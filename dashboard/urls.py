@@ -19,9 +19,9 @@ urlpatterns = [
     path("korisnici/<int:pk>/", views.korisnik_detail, name="korisnik_detail"),
 
     path("zaposlenici/", views.zaposlenici_list, name="zaposlenici_list"),
-path("zaposlenici/dodaj/", views.zaposlenik_create, name="zaposlenik_create"),
+    path("zaposlenici/dodaj/", views.zaposlenik_create, name="zaposlenik_create"),
     path("zaposlenici/<int:pk>/", views.zaposlenik_detail, name="zaposlenik_detail"),
-path("zaposlenici/<int:pk>/edit/", views.zaposlenik_update, name="zaposlenik_update"),
+    path("zaposlenici/<int:pk>/edit/", views.zaposlenik_update, name="zaposlenik_update"),
     path("zaposlenici/<int:pk>/delete/", views.zaposlenik_delete, name="zaposlenik_delete"),
     path("zaposlenici/smjene/postavi/", views.smjena_set, name="smjena_set"),
 

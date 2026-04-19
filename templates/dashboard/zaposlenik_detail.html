@@ -4,6 +4,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3 class="fw-bold">{{ zaposlenik.ime_prezime }}</h3>
 
+    {% if profil.role != "zaposlenik" %}
     <div class="d-flex gap-2">
         <a href="{% url 'zaposlenik_update' zaposlenik.id %}"
            class="btn btn-outline-primary rounded-pill px-4">
@@ -15,6 +16,7 @@
             Obriši
         </a>
     </div>
+    {% endif %}
 </div>
 
 <div class="dashboard-card">
@@ -29,6 +31,7 @@
             {{ zaposlenik.datum_ugovora }}
         </div>
 
+        {% if profil.role != "zaposlenik" %}
         <div class="col-md-6">
             <strong>Bruto:</strong><br>
             {{ zaposlenik.bruto|numfmt }} €
@@ -38,6 +41,7 @@
             <strong>Neto:</strong><br>
             {{ zaposlenik.neto|numfmt }} €
         </div>
+        {% endif %}
     </div>
 </div>
 

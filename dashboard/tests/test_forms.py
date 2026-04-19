@@ -71,3 +71,84 @@ class RezijaFormTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("datum_zavrsetka", form.errors)
+
+
+class PositiveAmountValidationTests(TestCase):
+    def test_korisnik_form_rejects_negative_iznos(self):
+        form = KorisnikForm(
+            data={
+                "ime_prezime": "Ana Horvat",
+                "datum_rodenja": "1950-01-01",
+                "oib": "12345678901",
+                "mbo": "MBO-1",
+                "soba": "12A",
+                "datum_dolaska": "2025-01-01",
+                "iznos": "-500.00",
+                "mjesecna_clanarina": "100.00",
+                "kontakt_obitelji": "Marko Horvat",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("iznos", form.errors)
+
+    def test_korisnik_form_rejects_zero_iznos(self):
+        from dashboard.forms import KorisnikForm
+        form = KorisnikForm(
+            data={
+                "ime_prezime": "Ana Horvat",
+                "datum_rodenja": "1950-01-01",
+                "oib": "12345678901",
+                "mbo": "MBO-1",
+                "soba": "12A",
+                "datum_dolaska": "2025-01-01",
+                "iznos": "0.00",
+                "mjesecna_clanarina": "100.00",
+                "kontakt_obitelji": "Marko Horvat",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("iznos", form.errors)
+
+    def test_zaposlenik_form_rejects_negative_bruto(self):
+        from dashboard.forms import ZaposlenikForm
+        form = ZaposlenikForm(
+            data={
+                "ime_prezime": "Marko Marić",
+                "pozicija": "Radnik",
+                "bruto": "-1000.00",
+                "neto": "800.00",
+                "datum_ugovora": "2024-01-01",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("bruto", form.errors)
+
+    def test_trosak_form_rejects_negative_iznos(self):
+        form = TrosakForm(
+            data={
+                "naziv": "Test",
+                "kategorija": "opcenito",
+                "iznos": "-50.00",
+                "datum": "2026-01-10",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("iznos", form.errors)
+
+    def test_rezija_form_rejects_negative_iznos(self):
+        form = RezijaForm(
+            data={
+                "naziv": "Struja",
+                "iznos": "-300.00",
+                "interval": "mjesecno",
+                "datum_pocetka": "2026-01-01",
+                "aktivna": True,
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("iznos", form.errors)

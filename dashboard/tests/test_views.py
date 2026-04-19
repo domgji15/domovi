@@ -56,3 +56,53 @@ class ViewSecurityTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], "/")
         self.assertEqual(self.client.session.get("selected_dom"), self.dom.id)
+
+    def test_zaposlenik_update_forbidden_for_employee(self):
+        user = self._create_user_with_profile("emp-user", "zaposlenik")
+        zaposlenik = self.dom.zaposlenik_set.create(
+            ime_prezime="Test Employee", pozicija="Radnik",
+            bruto=1000, neto=800, datum_ugovora="2024-01-01"
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("zaposlenik_update", args=[zaposlenik.id]))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_zaposlenik_delete_forbidden_for_employee(self):
+        user = self._create_user_with_profile("emp-user", "zaposlenik")
+        zaposlenik = self.dom.zaposlenik_set.create(
+            ime_prezime="Test Employee", pozicija="Radnik",
+            bruto=1000, neto=800, datum_ugovora="2024-01-01"
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("zaposlenik_delete", args=[zaposlenik.id]))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_rezija_update_forbidden_for_employee(self):
+        from dashboard.models import Rezija
+        user = self._create_user_with_profile("emp-user", "zaposlenik")
+        rezija = Rezija.objects.create(
+            naziv="Struja", iznos=300, interval="mjesecno",
+            datum_pocetka="2024-01-01", aktivna=True, dom=self.dom
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("rezija_update", args=[rezija.id]))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_rezija_delete_forbidden_for_employee(self):
+        from dashboard.models import Rezija
+        user = self._create_user_with_profile("emp-user", "zaposlenik")
+        rezija = Rezija.objects.create(
+            naziv="Struja", iznos=300, interval="mjesecno",
+            datum_pocetka="2024-01-01", aktivna=True, dom=self.dom
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("rezija_delete", args=[rezija.id]))
+
+        self.assertEqual(response.status_code, 403)

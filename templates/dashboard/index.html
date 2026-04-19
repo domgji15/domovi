@@ -182,7 +182,7 @@ document.addEventListener("DOMContentLoaded", function () {
         new Chart(domFinCtx, {
             type: 'bar',
             data: {
-                labels: [{% for l in dom_labels %}'{{ l }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                labels: [{% for l in dom_labels %}'{{ l|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
                 datasets: [
                     {
                         label: 'Primanja (€)',
@@ -218,7 +218,7 @@ document.addEventListener("DOMContentLoaded", function () {
         new Chart(domPopCtx, {
             type: 'bar',
             data: {
-                labels: [{% for l in dom_labels %}'{{ l }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                labels: [{% for l in dom_labels %}'{{ l|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
                 datasets: [{
                     label: 'Popunjenost',
                     data: [{% for d in dom_popunjenost_data %}{{ d|floatformat:"2u" }}{% if not forloop.last %}, {% endif %}{% endfor %}],
@@ -301,7 +301,7 @@ document.addEventListener("DOMContentLoaded", function () {
         new Chart(linePrimanjaCtx, {
             type: 'line',
             data: {
-                labels: [{% for l in line_labels %}'{{ l }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                labels: [{% for l in line_labels %}'{{ l|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
                 datasets: [{
                     label: 'Primanja (€)',
                     data: [{% for d in line_data_primanja %}{{ d|floatformat:"2u" }}{% if not forloop.last %}, {% endif %}{% endfor %}],
@@ -326,7 +326,7 @@ document.addEventListener("DOMContentLoaded", function () {
         new Chart(lineTroskoviCtx, {
             type: 'line',
             data: {
-                labels: [{% for l in line_labels %}'{{ l }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                labels: [{% for l in line_labels %}'{{ l|escapejs }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
                 datasets: [{
                     label: 'Troškovi (€)',
                     data: [{% for d in line_data_troskovi %}{{ d|floatformat:"2u" }}{% if not forloop.last %}, {% endif %}{% endfor %}],

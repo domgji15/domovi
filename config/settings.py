@@ -179,7 +179,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 if IS_PRODUCTION:
     STORAGES = {
         "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
     }
     WHITENOISE_MAX_AGE = _env_int("WHITENOISE_MAX_AGE", 31536000)
 

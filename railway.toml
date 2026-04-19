@@ -1,0 +1,7 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn config.wsgi:application -c deploy/gunicorn.conf.py"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

@@ -94,6 +94,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+if IS_PRODUCTION:
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 AUTO_LOGIN_ENABLED = DEBUG and _env_bool("AUTO_LOGIN_ENABLED", default=False)
 AUTO_LOGIN_USERNAME = os.getenv("AUTO_LOGIN_USERNAME", "").strip()
@@ -175,7 +177,11 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 if IS_PRODUCTION:
-    STATICFILES_STORAGE = "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    }
+    WHITENOISE_MAX_AGE = _env_int("WHITENOISE_MAX_AGE", 31536000)
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", default=IS_PRODUCTION)

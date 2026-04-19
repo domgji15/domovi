@@ -74,6 +74,7 @@
 
 </div>
 
+{% if profil.role != "zaposlenik" %}
 <div class="dashboard-card mt-4">
     <h5 class="mb-3">Pregled uplata</h5>
     <div class="row g-3 mb-3">
@@ -116,5 +117,6 @@
         </table>
     </div>
 </div>
+{% endif %}
 
 {% endblock %}

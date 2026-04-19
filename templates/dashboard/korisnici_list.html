@@ -49,7 +49,9 @@
                 <th>Ime i prezime</th>
                 <th>OIB</th>
                 <th>Soba</th>
-                <th>Uplata</th>
+                {% if profil.role != "zaposlenik" %}
+                    <th>Uplata</th>
+                {% endif %}
             </tr>
         </thead>
 
@@ -66,8 +68,8 @@
                 {{ k.soba }}
             </span>
         </td>
+        {% if profil.role != "zaposlenik" %}
         <td onclick="event.stopPropagation();">
-            {% if profil.role != "zaposlenik" %}
             <form method="post"
                   action="{% url 'korisnik_uplata_set' %}"
                   class="d-flex align-items-center gap-2 m-0 korisnik-uplata-form"
@@ -100,19 +102,13 @@
             {% if row.is_fully_paid and not row.uplata %}
                 <small class="text-success d-block mt-1">Ukupan iznos je u cijelosti podmiren.</small>
             {% endif %}
-            {% else %}
-                {% if row.uplata %}
-                    <span class="badge bg-success">Plaćeno</span>
-                {% else %}
-                    <span class="badge bg-secondary">Nije plaćeno</span>
-                {% endif %}
-            {% endif %}
         </td>
+        {% endif %}
     </tr>
     {% endwith %}
     {% empty %}
     <tr>
-        <td colspan="4" class="text-center py-4 text-muted">
+        <td colspan="{% if profil.role != 'zaposlenik' %}4{% else %}3{% endif %}" class="text-center py-4 text-muted">
             Nema korisnika.
         </td>
     </tr>
@@ -122,6 +118,8 @@
     </table>
 
 </div>
+
+<!-- Empty state message for employees -->
 
 <!-- PAGINATION -->
 {% if page_obj and page_obj.paginator.num_pages > 1 %}

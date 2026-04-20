@@ -100,7 +100,12 @@
     <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileNav">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title fw-bold">Izbornik</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn theme-toggle-btn" id="themeToggleBtnMobile" aria-label="Promijeni temu">
+                    <span id="themeToggleIconMobile">🌙</span>
+                </button>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+            </div>
         </div>
         <div class="offcanvas-body d-flex flex-column gap-3">
             <a href="{% url 'dashboard' %}" class="nav-pill {% if request.path == '/' %}active{% endif %}">Dashboard</a>
@@ -134,10 +139,6 @@
                     {{ request.user.get_full_name|default:request.user.username }}
                 </span>
             </a>
-
-            <button type="button" class="btn theme-toggle-btn mt-2" id="themeToggleBtnMobile" aria-label="Promijeni temu">
-                <span id="themeToggleIconMobile">🌙</span>
-            </button>
         </div>
     </div>
 

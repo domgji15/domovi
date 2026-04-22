@@ -10,7 +10,7 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.db.models import Count, Q, Sum
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
-from .models import Dom, Investicija, Korisnik, KorisnikUplata, Profil, Rezija, Smjena, Trosak, Zaposlenik
+from .models import Dom, Investicija, Klijent, Korisnik, KorisnikUplata, Profil, Rezija, Smjena, Trosak, Zaposlenik
 from .forms import InvesticijaForm, KorisnikForm, RezijaForm, TrosakForm, ZaposlenikForm
 from .dom_access import resolve_selected_dom_id
 
@@ -1585,3 +1585,12 @@ def health_check(request):
             {"status": "unhealthy", "error": str(e)},
             status=503
         )
+
+
+@login_required
+def admin_domovi_po_klijentu(request, klijent_id):
+    """AJAX endpoint: returns domovi belonging to a klijent (for admin ProfilAdmin JS)."""
+    if not request.user.is_staff:
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    domovi = Dom.objects.filter(klijent_id=klijent_id).order_by("naziv").values("id", "naziv")
+    return JsonResponse({"domovi": list(domovi)})

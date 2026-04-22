@@ -41,4 +41,6 @@ urlpatterns = [
     path("rezije/<int:pk>/delete/", views.rezija_delete, name="rezija_delete"),
 
     path("health/", views.health_check, name="health_check"),
+
+    path("admin/domovi-po-klijentu/<int:klijent_id>/", views.admin_domovi_po_klijentu, name="admin_domovi_po_klijentu"),
 ]

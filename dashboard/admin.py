@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.contrib.admin.sites import NotRegistered
+from django.db.models import Q
 from .models import Dom, Investicija, Klijent, Korisnik, KorisnikUplata, Profil, Rezija, Smjena, Trosak, Zaposlenik
 
 # ---------------------------------------------------------------------------
@@ -73,7 +74,7 @@ class ProfilAdmin(admin.ModelAdmin):
         if request.user.is_superuser:
             return qs
         dom_ids = _get_managed_dom_ids(request)
-        return qs.filter(zaposlenik__dom_id__in=dom_ids)
+        return qs.filter(Q(zaposlenik__dom_id__in=dom_ids) | Q(dom_id__in=dom_ids))
 
 
 class ProfilInline(admin.StackedInline):

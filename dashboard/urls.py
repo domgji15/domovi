@@ -42,5 +42,4 @@ urlpatterns = [
 
     path("health/", views.health_check, name="health_check"),
 
-    path("api/domovi-po-klijentu/<int:klijent_id>/", views.admin_domovi_po_klijentu, name="admin_domovi_po_klijentu"),
 ]

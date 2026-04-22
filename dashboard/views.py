@@ -1586,11 +1586,3 @@ def health_check(request):
             status=503
         )
 
-
-@login_required
-def admin_domovi_po_klijentu(request, klijent_id):
-    """AJAX endpoint: returns domovi belonging to a klijent (for admin ProfilAdmin JS)."""
-    if not request.user.is_staff:
-        return JsonResponse({"error": "Forbidden"}, status=403)
-    domovi = Dom.objects.filter(klijent_id=klijent_id).order_by("naziv").values("id", "naziv")
-    return JsonResponse({"domovi": list(domovi)})

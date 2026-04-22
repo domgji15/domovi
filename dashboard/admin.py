@@ -45,29 +45,18 @@ class DomInline(admin.TabularInline):
 
 @admin.register(Profil)
 class ProfilAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "dom", "zaposlenik", "get_organizacija")
-    list_filter = ("role", "klijent", "dom")
+    list_display = ("user", "role", "dom", "zaposlenik", "get_klijent")
+    list_filter = ("role", "dom__klijent", "dom")
     search_fields = ("user__username", "user__first_name", "user__last_name", "dom__naziv", "zaposlenik__ime_prezime")
     filter_horizontal = ("upravljani_domovi",)
     autocomplete_fields = ("zaposlenik",)
-    fields = ("user", "klijent", "role", "zaposlenik", "upravljani_domovi")
+    fields = ("user", "dom", "role", "zaposlenik", "upravljani_domovi")
 
-    class Media:
-        js = ("dashboard/admin/profil_klijent_filter.js",)
-
-    @admin.display(description="Organizacija")
-    def get_organizacija(self, obj):
+    @admin.display(description="Klijent")
+    def get_klijent(self, obj):
         if obj.klijent_id:
             return obj.klijent
         return obj.dom.klijent if obj.dom_id else "-"
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        if obj and obj.klijent_id:
-            form.base_fields["upravljani_domovi"].queryset = Dom.objects.filter(klijent=obj.klijent)
-        elif not obj:
-            form.base_fields["upravljani_domovi"].queryset = Dom.objects.none()
-        return form
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

@@ -47,7 +47,7 @@ class Profil(models.Model):
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    klijent = models.ForeignKey("Klijent", on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Organizacija")
+    klijent = models.ForeignKey("Klijent", on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Klijent")
     dom = models.ForeignKey("Dom", on_delete=models.SET_NULL, null=True, blank=True)
     zaposlenik = models.OneToOneField(
         "Zaposlenik",

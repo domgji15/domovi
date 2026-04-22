@@ -4,6 +4,38 @@ from django.contrib.auth.models import User
 from django.contrib.admin.sites import NotRegistered
 from .models import Dom, Investicija, Klijent, Korisnik, KorisnikUplata, Profil, Rezija, Smjena, Trosak, Zaposlenik
 
+# ---------------------------------------------------------------------------
+# Scoped admin za upravitelje
+#
+# Kako dodijeliti upravitelja:
+# 1. Kreirati korisnika u adminu
+# 2. Postaviti is_staff = True
+# 3. Dodati u grupu "Upravitelji"  (python manage.py setup_upravitelj_group)
+# 4. Otvoriti/kreirati njihov Profil → role="upravitelj",
+#    upravljani_domovi = domovi kojima upravljaju
+# ---------------------------------------------------------------------------
+
+
+def _get_managed_dom_ids(request):
+    """Vraća set dom ID-eva kojima upravatelj upravlja."""
+    try:
+        profil = request.user.profil
+    except Profil.DoesNotExist:
+        return set()
+    if profil.role != "upravitelj":
+        return set()
+    ids = set(profil.upravljani_domovi.values_list("id", flat=True))
+    if not ids and profil.dom_id:
+        ids = {profil.dom_id}
+    return ids
+
+
+def _is_upravitelj(request):
+    try:
+        return request.user.profil.role == "upravitelj"
+    except Profil.DoesNotExist:
+        return False
+
 
 class DomInline(admin.TabularInline):
     model = Dom
@@ -36,6 +68,31 @@ class ProfilAdmin(admin.ModelAdmin):
             form.base_fields["upravljani_domovi"].queryset = Dom.objects.none()
         return form
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        dom_ids = _get_managed_dom_ids(request)
+        return qs.filter(zaposlenik__dom_id__in=dom_ids)
+
+
+class ProfilInline(admin.StackedInline):
+    model = Profil
+    extra = 0
+    can_delete = False
+
+    def get_fields(self, request, obj=None):
+        if request.user.is_superuser:
+            return ("klijent", "dom", "role", "zaposlenik", "upravljani_domovi")
+        return ("role", "zaposlenik")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "zaposlenik" and not request.user.is_superuser:
+            kwargs["queryset"] = Zaposlenik.objects.filter(
+                dom_id__in=_get_managed_dom_ids(request)
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 try:
     admin.site.unregister(User)
@@ -47,6 +104,7 @@ except NotRegistered:
 class UserAdmin(BaseUserAdmin):
     list_display = ("username", "first_name", "last_name", "email", "is_staff", "is_active")
     search_fields = ("username", "first_name", "last_name", "email")
+    inlines = [ProfilInline]
 
     fieldsets = (
         (None, {"fields": ("username", "password")}),
@@ -54,6 +112,18 @@ class UserAdmin(BaseUserAdmin):
         ("Dozvole", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         ("Važni datumi", {"fields": ("last_login", "date_joined")}),
     )
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        dom_ids = _get_managed_dom_ids(request)
+        return qs.filter(profil__zaposlenik__dom_id__in=dom_ids)
+
+    def has_delete_permission(self, request, obj=None):
+        if _is_upravitelj(request):
+            return False
+        return super().has_delete_permission(request, obj)
 
 
 @admin.register(Klijent)
@@ -119,6 +189,29 @@ class ZaposlenikAdmin(admin.ModelAdmin):
     @admin.display(description="Klijent")
     def klijent(self, obj):
         return obj.dom.klijent if obj.dom_id else "-"
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(dom_id__in=_get_managed_dom_ids(request))
+
+    def save_model(self, request, obj, form, change):
+        if not request.user.is_superuser and not obj.dom_id:
+            dom_ids = _get_managed_dom_ids(request)
+            if dom_ids:
+                obj.dom_id = next(iter(dom_ids))
+        super().save_model(request, obj, form, change)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "dom" and not request.user.is_superuser:
+            kwargs["queryset"] = Dom.objects.filter(id__in=_get_managed_dom_ids(request))
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def has_delete_permission(self, request, obj=None):
+        if _is_upravitelj(request):
+            return False
+        return super().has_delete_permission(request, obj)
 
 @admin.register(Investicija)
 class InvesticijaAdmin(admin.ModelAdmin):

@@ -33,6 +33,7 @@
                 {% endif %}
             </h5>
         </div>
+        {% if not profil_obj or profil_obj.role != "upravitelj" %}
         <div class="col-md-6">
             <small>Primarni dom</small>
             <h5 class="mt-1 mb-0">
@@ -43,6 +44,7 @@
                 {% endif %}
             </h5>
         </div>
+        {% endif %}
         <div class="col-md-6">
             <small>Datum registracije</small>
             <h5 class="mt-1 mb-0">{{ user_obj.date_joined|date:"d.m.Y." }}</h5>

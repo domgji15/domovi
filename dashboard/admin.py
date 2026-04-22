@@ -119,7 +119,9 @@ class UserAdmin(BaseUserAdmin):
         if request.user.is_superuser:
             return qs
         dom_ids = _get_managed_dom_ids(request)
-        return qs.filter(profil__zaposlenik__dom_id__in=dom_ids)
+        return qs.filter(
+            Q(pk=request.user.pk) | Q(profil__zaposlenik__dom_id__in=dom_ids)
+        )
 
     def has_delete_permission(self, request, obj=None):
         if _is_upravitelj(request):

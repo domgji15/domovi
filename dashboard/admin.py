@@ -17,7 +17,7 @@ class ProfilAdmin(admin.ModelAdmin):
     search_fields = ("user__username", "user__first_name", "user__last_name", "dom__naziv", "zaposlenik__ime_prezime")
     filter_horizontal = ("upravljani_domovi",)
     autocomplete_fields = ("zaposlenik",)
-    fields = ("user", "klijent", "dom", "role", "zaposlenik", "upravljani_domovi")
+    fields = ("user", "klijent", "role", "zaposlenik", "upravljani_domovi")
 
     class Media:
         js = ("dashboard/admin/profil_klijent_filter.js",)

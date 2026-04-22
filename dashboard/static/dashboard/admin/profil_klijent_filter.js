@@ -13,7 +13,7 @@
             return;
         }
 
-        fetch('/admin/domovi-po-klijentu/' + klijentId + '/')
+        fetch('/api/domovi-po-klijentu/' + klijentId + '/')
             .then(function (response) { return response.json(); })
             .then(function (data) {
                 // Collect IDs already in chosen list

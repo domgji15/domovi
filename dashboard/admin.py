@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.contrib.admin.sites import NotRegistered
 from django.db.models import Q
-from .models import Dom, Investicija, Klijent, Korisnik, KorisnikUplata, Profil, Rezija, Smjena, Trosak, Zaposlenik
+from .models import Dom, Investicija, Klijent, Korisnik, KorisnikUplata, Profil, Rezija, Smjena, Trosak, UserProfile, Zaposlenik
 
 # ---------------------------------------------------------------------------
 # Scoped admin za upravitelje
@@ -66,6 +66,13 @@ class ProfilAdmin(admin.ModelAdmin):
         return qs.filter(Q(zaposlenik__dom_id__in=dom_ids) | Q(dom_id__in=dom_ids))
 
 
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    extra = 0
+    fields = ("must_change_password",)
+
+
 class ProfilInline(admin.StackedInline):
     model = Profil
     extra = 0
@@ -90,11 +97,20 @@ except NotRegistered:
     pass
 
 
+@admin.action(description="Zahtijevaj promjenu lozinke pri sljedećoj prijavi")
+def zahtijevaj_promjenu_lozinke(modeladmin, request, queryset):
+    for user in queryset:
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.must_change_password = True
+        profile.save()
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     list_display = ("username", "first_name", "last_name", "email", "is_staff", "is_active")
     search_fields = ("username", "first_name", "last_name", "email")
-    inlines = [ProfilInline]
+    inlines = [UserProfileInline, ProfilInline]
+    actions = [zahtijevaj_promjenu_lozinke]
 
     fieldsets = (
         (None, {"fields": ("username", "password")}),

@@ -225,3 +225,19 @@ class Rezija(models.Model):
 
     def __str__(self):
         return f"{self.naziv} ({self.get_interval_display()})"
+
+
+# =====================================
+# USER PROFILE (auth state)
+# =====================================
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="user_profile")
+    must_change_password = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Korisnički profil"
+        verbose_name_plural = "Korisnički profili"
+
+    def __str__(self):
+        return f"{self.user.username} – profil"

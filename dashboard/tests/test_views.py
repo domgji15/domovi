@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from dashboard.models import Dom, Klijent, Profil
+from dashboard.models import Dom, Klijent, Profil, UserProfile
 
 
 class ViewSecurityTests(TestCase):
@@ -13,6 +13,7 @@ class ViewSecurityTests(TestCase):
     def _create_user_with_profile(self, username, role):
         user = User.objects.create_user(username=username, password="test-pass-123")
         Profil.objects.create(user=user, dom=self.dom, role=role)
+        UserProfile.objects.filter(user=user).update(must_change_password=False)
         return user
 
     def test_dashboard_requires_login(self):

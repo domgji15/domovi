@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import HttpResponseForbidden, JsonResponse
@@ -1586,3 +1587,31 @@ def health_check(request):
             status=503
         )
 
+
+@login_required
+def change_password_view(request):
+    if request.method == "POST":
+        old_password = request.POST.get("old_password", "")
+        new_password1 = request.POST.get("new_password1", "")
+        new_password2 = request.POST.get("new_password2", "")
+        user = request.user
+
+        if not user.check_password(old_password):
+            messages.error(request, "Trenutna lozinka nije ispravna.")
+        elif new_password1 != new_password2:
+            messages.error(request, "Nove lozinke se ne podudaraju.")
+        elif len(new_password1) < 8:
+            messages.error(request, "Nova lozinka mora imati najmanje 8 znakova.")
+        else:
+            user.set_password(new_password1)
+            user.save()
+            update_session_auth_hash(request, user)
+            try:
+                user.user_profile.must_change_password = False
+                user.user_profile.save()
+            except Exception:
+                pass
+            messages.success(request, "Lozinka je uspješno promijenjena.")
+            return redirect("/")
+
+    return render(request, "auth/change_password.html")

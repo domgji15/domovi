@@ -2,6 +2,26 @@ from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.models import User
 
+
+class ForcePasswordChangeMiddleware:
+    EXEMPT_PREFIXES = ('/change-password/', '/logout/', '/admin/', '/static/', '/media/')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user.is_authenticated:
+            path = request.path
+            if not any(path.startswith(p) for p in self.EXEMPT_PREFIXES):
+                try:
+                    if request.user.user_profile.must_change_password:
+                        from django.shortcuts import redirect
+                        return redirect('change_password')
+                except Exception:
+                    pass  # No UserProfile yet — skip redirect
+        return self.get_response(request)
+
+
 class AutoLoginMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response

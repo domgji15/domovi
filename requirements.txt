@@ -3,4 +3,4 @@ django-jazzmin==3.0.3
 psycopg[binary]>=3.2,<4
 gunicorn>=22,<24
 whitenoise>=6.8,<7
-django-anymail[resend]>=12,<13
+django-anymail[brevo]>=12,<13

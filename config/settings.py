@@ -282,14 +282,14 @@ LOGOUT_REDIRECT_URL = '/login/'
 
 # Email configuration (password reset)
 if IS_PRODUCTION:
-    EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+    EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
     ANYMAIL = {
-        "RESEND_API_KEY": os.getenv("RESEND_API_KEY", ""),
+        "BREVO_API_KEY": os.getenv("BREVO_API_KEY", ""),
     }
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Domovi <onboarding@resend.dev>")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Domovi <domovi26@gmail.com>")
 
 JAZZMIN_SETTINGS = {
     "site_title": "Domovi Admin",

@@ -59,6 +59,9 @@ def _env_list(name, default=None):
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 IS_PRODUCTION = APP_ENV == "production"
 
+_admin_email = os.getenv("ADMIN_EMAIL", "")
+ADMINS = [("Admin", _admin_email)] if _admin_email else []
+
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-change-this").strip()
 if IS_PRODUCTION and SECRET_KEY == "django-insecure-change-this":
     raise ImproperlyConfigured("Set a strong SECRET_KEY for production.")

@@ -1,9 +1,11 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
+from django.http import HttpResponse
 from dashboard.views import change_password_view
 
 urlpatterns = [
+    path('robots.txt', lambda r: HttpResponse("User-agent: *\nDisallow: /\n", content_type="text/plain")),
     path('admin/', admin.site.urls),
 
     path('', include('dashboard.urls')),

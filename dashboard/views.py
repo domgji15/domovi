@@ -1582,10 +1582,7 @@ def health_check(request):
             cursor.execute("SELECT 1")
         return JsonResponse({"status": "healthy"}, status=200)
     except Exception as e:
-        return JsonResponse(
-            {"status": "unhealthy", "error": str(e)},
-            status=503
-        )
+        return JsonResponse({"status": "unhealthy"}, status=503)
 
 
 @login_required
